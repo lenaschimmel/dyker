@@ -10,7 +10,7 @@ pf=0 -- player flip (looking direction)
 tb=0 -- to build (0 = none, 1 = dyke)
 sx=0 -- scroll x in pixel
 sb = 30 -- scroll sensitive border
-re = {0, 5, 0} -- ressources (score, stone, wood)
+re = {5, 0, 0} -- ressources (stone, wood, score)
 
 levelwidth = 60
 levelheight = 17
@@ -18,20 +18,47 @@ levelheight = 17
 function OVR()
   map(0,0,levelwidth,levelheight,-sx,0,0)
 
+
+  ct = "" --center text
+
   -- draw cursor
   sp = 6
-  if tb==0 and isvalidblockpos(mx,my) then
-    sp = 5
-    if l and re[2] > 0 then
-      tx = mx
-        ty = my
-        tb=1
-        re[2]=re[2]-1
-        --mset(mx,my,3)
+  if my > 3 then
+    if tb==0 then
+      if not isvalidblockpos(mx,my) then
+        ct = "Cant build dyke here"
+      elseif re[1] == 0 then
+        ct = "No stones to build dyke"
+      else
+        sp = 5
+        ct = "Build dyke here"
+        if l and re[1] > 0 then
+          tx = mx
+          ty = my
+          tb=1
+          re[1]=re[1]-1
+          --mset(mx,my,3)
+        end
       end
+    end
+  else
+    sp = 4
+    if my == 1 then
+      if mxa > 0 and mxa < 4 then
+        ct =  re[1] .. " stones"
+      end
+      if mxa > 4 and mxa < 8 then
+        ct =  re[2] .. " wood"
+      end
+      if mxa > 8 and mxa < 13 then
+        ct =  re[3] .. " score"
+      end
+    end
   end
 	spr(sp,mx*8-sx,my*8,0)
+  printc(ct, 120, 0, 12)
 
+  -- show resources
   for i = 1,3,1 do
     spr(39 +i, 32 * i - 24, 8, 0)
     print(re[i], 32 * i - 15, 9, 12, true)
@@ -44,6 +71,7 @@ function TIC()
   x,y,l = mouse()
   -- mouse position in grid coords
   mx = math.floor((x+sx) / 8)
+  mxa = math.floor(x / 8)
   my = math.floor(y / 8)
   
   if x < sb then
@@ -164,11 +192,17 @@ function isempty(x,y)
   return fget(mget(x,y),2) and fget(mget(x,y+levelheight),2) and not iswater(x,y)
 end
 
+--Prints text where x is the center of text.
+function printc(s,x,y,c)
+  local w=print(s,0,-8)
+  print(s,x-(w/2),y,c or 15)
+end
+
 -- <TILES>
 -- 001:3333333434333333333433333333333333333343334333333333433343333333
 -- 002:9999999999999989998999999999999999999989999999999899989999999999
 -- 003:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
--- 004:ccccc000cccc0000ccc00000cc0c0000c000c00000000c00000000c00000000c
+-- 004:000000000000000000000000000000000000ccc00000cc000000c0c00000000c
 -- 005:cc0000ccc000000c00000000000000000000000000000000c000000ccc0000cc
 -- 006:2200002220000002000000000000000000000000000000002000000222000022
 -- 007:0003330000ccc330009c9c3000cccc00000cc000066666606066660660666606
@@ -197,9 +231,9 @@ end
 -- 037:0000000000000000000000000000000000000000000000000050000006667770
 -- 038:65665566776476763773473737333433343333433343343434334f334f333333
 -- 039:00000000000c0000000c0000000c0000c00c00c00c0c0c0000ccc000000c0000
--- 040:00cc11000c113110c1133111c131311111113113111131130111113000113300
--- 041:000000000eeeede00eeeede00dddddd00edeeee00edeeee00dddddd000000000
--- 042:0000033000003344000334440033444003344400333340003333000003300000
+-- 040:000000000eeeede00eeeede00dddddd00edeeee00edeeee00dddddd000000000
+-- 041:0000033000003344000334440033444003344400333340003333000003300000
+-- 042:00cc11000c113110c1133111c131311111113113111131130111113000113300
 -- 043:0000005500005566000556660056666500662256055622560666766606676776
 -- 044:5650000062260000622760005666670067666600667667707766767066666700
 -- 048:00000000000000000000000000000000000d000000ddd00d00ddee0d0ddeeedd
