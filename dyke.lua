@@ -10,7 +10,7 @@ tx=12 -- target x (to walk to)
 bx=0 -- build target x
 by=0 -- build target y
 tb=nil -- to build (nil or object)
-to=0 -- tool (0=walk, 1=build, 2=collect, 3=cut, 4=card)
+to=1 -- tool (1=walk, 2=build, 3=collect, 4=cut, 5=card)
 wo = false -- working, time passing, accept no input during this
 tl = 0
 
@@ -26,6 +26,7 @@ levelheight = 17
 
 re_names={"stone", "wood", "score", "time"}
 re_symbols={"#", "/", "$", "*"}
+to_names={"walk", "build dyke", "collect", "cut", "play card"}
 
 objecttypes = {
   {
@@ -45,23 +46,61 @@ objecttypes = {
     sy=2,
     sprites={48,48,48,48},
     isblock=false,
-    collectible=false,
-    cuttable=true,
-    re=10,
-    cutgain={1,0,0,0},
-    cuttime=30,
+    cut = {
+      verb = "break",
+      re = 10,
+      gain = {1,0,0,0},
+      time = 100
+    },
     draw = function(o)
       x = o.x*8-sx
       y = o.y*8
-      if o.re > 6 then
+      if o.cut.re > 6 then
         spr(48,x,y,0, 1, 0, 0, 2, 2)
-      elseif o.re > 3 then
+      elseif o.cut.re > 3 then
         spr(48,x,y+8,0, 1, 0, 0, 2, 1)
-      elseif o.re > 0 then
+      elseif o.cut.re > 0 then
         spr(33,x,y+8,0, 1)
       end
     end 
-    
+  },
+  {
+    name="tree",
+    cost={0,0,0,0},
+    desc="you can collect apples from it, or cut it for wood.",
+    sx=2,
+    sy=2,
+    sprites={75,39,11,41},
+    isblock=false,
+    cut = {
+      verb = "cut",
+      re = 1,
+      gain = {0,10,0,0},
+      time = 250
+    },
+    collect = {
+      verb = "pick",
+      re = 0,
+      gain = {0,0,3,0},
+      time = 10
+    },
+    draw = function(o)
+      if o.cut.re == 0 then
+        o.state = 4
+      end
+      x = o.x*8-sx
+      y = o.y*8
+      sp = o.type.sprites[o.state]
+      if o.state == 3 then
+        for xi = 0,1 do
+          for yi = 0,1 do
+            spr(sp + xi + 16 * yi + 32,x + xi*8,y+yi*8,0, 1)
+          end
+        end
+      else
+        spr(sp,x,y,0, 1, 0, 0, 2, 2)
+      end
+    end 
   },
 }
 
@@ -73,8 +112,19 @@ function createobject(type,tx,ty)
     x = tx,
     y = ty,
     state = 1,
-    re = type.re
+    cut = {
+       re = 0
+    },
+    collect = { 
+      re = 0
+    }
   }
+  if type.cut then
+    object.cut.re = type.cut.re
+  end
+  if type.collect then
+    object.collect.re = type.collect.re
+  end
   table.insert(objects, object)
   return object
 end
@@ -106,14 +156,23 @@ end
 
 for x=0,levelwidth do
   for y=0,levelheight do
+    type = nil
     if mget(x,y) == 224 then
       type = objecttypes[2]
+    end
+    if mget(x,y) == 75 then
+      type = objecttypes[3]
+    end
+    if type then
       for xx = x, x+type.sx-1 do
         for yy = y, y+type.sy-1 do
           mset(xx,yy, 0)
         end
       end
-      createobject(type,x,y)
+      o = createobject(type,x,y)
+      if type == objecttypes[3] then
+        o.state = 3
+      end
     end
   end
 end
@@ -126,14 +185,14 @@ function OVR()
 
   -- show resources
   te = string.format("%2d# %2d/ %4d$",re[1],re[2],re[3])
-  prints(te, 8, 8, 12)
+  prints(te, 6, 8, 12)
 
   -- show actions
   prints("Action:", 16*6, 8, 12)
-  for i=0,4 do
-    spr(96 + i, 144 + 12*i, 8, 0)
+  for i=1,5 do
+    spr(95 + i, 132 + 12*i, 8, 0)
     if to==i then
-      spr(104, 144 + 12*i, 8, 0)
+      spr(104, 132 + 12*i, 8, 0)
     end
   end
 
@@ -144,8 +203,8 @@ function OVR()
     if wo then
       sp = 102
     else
-      if to == 0 then -- walk
-        sp = 160 + to -- disabled
+      sp = 159 + to -- disabled
+      if to == 1 then -- walk
         if isempty(mx,my) then
           for ly=my+1,levelheight do
             if not isempty(mx,ly) then
@@ -170,16 +229,15 @@ function OVR()
         end
       end
 
-      if to == 1 then -- build
+      if to == 2 then -- build
         ty = objecttypes[1]
-        sp = 136
         mis = canpay(ty.cost)
         if mis > 0 then
           ct = "Not enough " .. re_symbols[mis] .. " to build " .. ty.name
         elseif not isvalidblockpos(mx,my) then
           ct = "Cant build " .. ty.name .. " here"
         else
-          sp = 120
+          sp = sp - 16 -- enable
           left = mx
           right = mx + ty.sx - 1
           ptx = workpoint(left, right)
@@ -200,18 +258,28 @@ function OVR()
         end
       end
 
-      if to == 2 or to == 3 then -- collect / harvest / cut
-        sp = 162
+      if to == 3 or to == 4 then -- collect / cut
         for _,o in pairs(objects) do
           ty = o.type
           left = o.x
           right = o.x + ty.sx -1
           ptx = workpoint(left, right)
           if mx >= left and mx <= right and my >= o.y and my <= o.y + ty.sy -1 then
-            if to == 3 and ty.cuttable then
-              if o.re > 0 then
-                sp = 146
-                ct = "cut " .. ty.name .. " to get " .. coststring(ty.cutgain) .. ": " .. timestring(walktimetox(ptx) + ty.cuttime) .. " ("..o.re.."x left)"
+            action = nil
+
+            releft = 0
+            if to == 3 and ty.collect then
+              action = ty.collect
+              releft = o.collect.re
+            elseif to == 4 and ty.cut then
+              action = ty.cut
+              releft = o.cut.re
+            end
+
+            if action then
+              if releft > 0 then
+                sp = sp - 16 -- enable
+                ct = action.verb .. " " .. ty.name .. " to get " .. coststring(action.gain) .. ": " .. timestring(walktimetox(ptx) + action.time) .. " ("..releft.."x left)"
                 if l then
                   tb = o
                   wo = true
@@ -219,7 +287,7 @@ function OVR()
                   tl = 0
                 end
               else
-                ct = "no more resources left"
+                ct = "nothing to " .. action.verb .. " there"
               end
             end
           end
@@ -239,11 +307,10 @@ function OVR()
             ct =  re[i] .. " " .. re_names[i]
           end
         end
-        for i=0,4 do
-          if mxc == 24 + 2*i then
+        for i=1,5 do
+          if mxc == 22 + 2*i then
             sp = 120
-            texts = {"walk", "build dyke", "collect", "cut", "play card"}
-            ct = texts[i+1]
+            ct = to_names[i]
             if l then
               to = i
             end
@@ -293,7 +360,7 @@ function earn(gain)
 end
 
 function timestring(time)
-  return string.format("%1.1f %s", time / wt, re_symbols[4])
+  return string.format("%1.1f%s", time / wt, re_symbols[4])
 end
 
 function coststring(cost, extratime)
@@ -305,7 +372,7 @@ function coststring(cost, extratime)
       if string.len(str) > 0 then
         str = str .. ", "
       end
-      str = string.format("%s%d %s", str, co, re_symbols[i])
+      str = string.format("%s%d%s", str, co, re_symbols[i])
     end
   end
   time = (cost[4] or 0) + extratime
@@ -353,11 +420,11 @@ function TIC()
         end
       end
     else -- doing something else
-      if to == 0 then
+      if to == 1 then -- walk
         wo = false
       end
 
-      if to == 1 and tb ~= nil then
+      if to == 2 and tb ~= nil then
         if tb.state == 1 then -- planned -> building
           tb.state = 2
           tl = tb.type.cost[4]
@@ -374,16 +441,18 @@ function TIC()
         end
       end
 
-      if to == 3 or to == 4 then -- cut or collect
+      if to == 4 then -- cut 
         ty = tb.type
-        if tl == 0 then -- start collecting
-          tl = ty.cuttime
+        if tl == 0 then -- start cutting
+          trace("Start cutting")
+          tl = ty.cut.time
         end
         
         tl = tl - 1
         if tl <= 0 then -- finished collecting
-          tb.re = tb.re - 1
-          earn(ty.cutgain)
+          trace("Finished cutting")
+          tb.cut.re = tb.cut.re - 1
+          earn(ty.cut.gain)
           tb = nil
           wo = false
         end
@@ -427,7 +496,7 @@ function TIC()
       legs = 69
     end
   end
-  if wo and to > 0 and to < 4 then
+  if wo and to > 1 and to < 5 then
     dx = px - 1 + 2 * pf
     spr(50,dx*8-sx,(py-1)*8,0, 1, pf) -- arm
     spr(to+80,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
@@ -529,12 +598,14 @@ end
 
 --Prints text where x is the center of text.
 function printc(s,x,y,c)
-  local w=print(s,0,-8)
-  prints(s,x-(w/2//6*6),y,c or 15, true)
+  local w=print(s,0,-8,c or 15,true)
+  trace("print at " .. x-(w/2//6*6) .. " w=".. w ..": " .. s)
+  prints(s,x-(w/2//6*6),y,c or 15)
 end
 
 --Prints text, replaces some symbols with sprites
 function prints(s,x,y,c)
+  
   print(s:gsub("$"," "):gsub("/"," "):gsub("#"," "):gsub("*"," "),x,y+1,c or 15, true)
   for i = 1, s:len() do
     ch = s:sub(i,i)
@@ -677,8 +748,8 @@ end
 -- 008:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000315110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 009:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005202000000000000000000311010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 010:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000313201410000000000000031511042000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
--- 011:0000000000000000000000000000000000003101410000000000000e1e00000000000000000000000000000031511010614112000000003151101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
--- 012:0000000000000031013241000000000000315110324100000000000f1f00000000000000000000000000003151424210106132320101015110221010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 011:00000000000000000000b4000000000000003101410000000000000e1e00000000000000000000000000000031511010614112000000003151101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 012:00000000000000310132410000b4000000315110324100000000000f1f00000000000000000000000000003151424210106132320101015110221010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 013:000000000000315110106101410000023151102210610141000031010101410000000000000000000000313210101010101010101010421042104210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 014:000000000031511042421010610101013210104210421061010151101010610101410000000000000031514210101042101010221010421010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 015:000000123151101022101042104210101010421042101042101010421010101010614102000000003151101010102210424242421042424242424210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
