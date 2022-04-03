@@ -1,8 +1,8 @@
+--
 -- title:  dyke march
 -- author: lena schimmel
 -- desc:   a game for ld50
 -- script: lua
-
 t=0 --global time
 px=12 -- player x (y is not saved, but computed)
 tx=12 -- target x (e.g. for construction)
@@ -21,22 +21,36 @@ levelheight = 17
 function OVR()
   map(0,0,levelwidth,levelheight,-sx,0,0)
 
-  ct = "" --center text
-
   x,y,l = mouse()
   my = y // 8
 
+  -- show resources
+  te = string.format("%2d# %2d/ %4d$",re[1],re[2],re[3])
+  prints(te, 8, 8, 12)
+
+  -- show actions
+  prints("Action:", 16*6, 8, 12)
+  for i=0,6 do
+    spr(96 + i, 144 + 12*i, 8, 0)
+    if to==i then
+      spr(104, 144 + 12*i, 8, 0)
+    end
+  end
+
+  ct = "" --center text
   -- draw cursor
   sp = 119
-  if my > 1 then
+  if my > 2 then -- lower screen part
     if to == 0 then -- walk
-      sp = 137
+      sp = 160 + to -- disabled
       if isempty(mx,my) then
         for ly=my+1,levelheight do
           if not isempty(mx,ly) then
             if isblock(mx, ly) then
-              spr(122,mx*8-sx,ly*8-8,0)
-              sp = 121
+              if ly - 1 ~= my then
+                spr(122,mx*8-sx,ly*8-8,0)
+              end
+              sp = sp - 16 -- enable
               ct = "Walk here: 4*"
             else
               ct = "Not walkable"
@@ -68,7 +82,6 @@ function OVR()
     end
     spr(sp,mx*8-sx,my*8,0)
   else
-    sp = 4
     mxc = x // 6
     if my == 1 then
       if mxc > 0 and mxc < 4 then
@@ -80,19 +93,27 @@ function OVR()
       if mxc > 8 and mxc < 13 then
         ct =  re[3] .. " score"
       end
+     
+
+      for i=0,4 do
+        if mxc == 24 + 2*i then
+          sp = 120
+          texts = {"walk", "build dyke", "collect", "cut", "play card"}
+          ct = texts[i+1]
+          if l then
+            to = i
+          end
+        end
+      end
     end
     spr(sp,mxc*6,my*8,0)
   end
   printc(ct, 120, 0, 12)
-
-  -- show resources
-  te = string.format("%2d# %2d/ %4d$",re[1],re[2],re[3])
-  prints(te, 8, 8, 12)
 end
 
 function TIC()
   -- mouse calc
-  x,y,l = mouse()
+  x,y,l,_,_,sxv = mouse()
   -- mouse position in grid coords
   mx = math.floor((x+sx) / 8)
   mxa = math.floor(x / 8)
@@ -124,12 +145,15 @@ function TIC()
   
   if x < sb then
     sv = sb - x
-    sx = math.max(sx - sv * sv / 400, 0)
+    sx = sx - sv * sv / 400
   end
   if x > (240 - sb) then
     sv = x - (240 - sb)
-    sx = math.min(sx + sv * sv / 400, (levelwidth * 8) - 240)
+    sx = sx + sv * sv / 400
   end
+  sx = sx + sxv * 2
+  sx = math.max(sx, 0)
+	sx = math.min(sx, (levelwidth * 8) - 240)
 	
 	for py = 0,18,1 do
     if isblock(px,py) then
@@ -300,13 +324,15 @@ end
 -- 068:006666060099990000999900099009000900090009000900ff0009000000ff00
 -- 069:006666060099990000999900009099000090900000909000009ff0000ff00000
 -- 080:00000c000c00c000c00000000000000000c000000c0000000000000000000000
--- 081:0000330000030030003333340033334400343434000343400000000000000000
--- 082:0000033400003340000d340000dee000000eeef00000ef000000f00000000000
--- 083:00003400000034000000340000ddddde00deeeef00efffff0000000000000000
--- 096:000000ff00000ff00000000000ff0ff00ff0ff000000000000ff00000ff00000
--- 097:0000000000033000003003000333334003333440034343400034340000000000
--- 098:000000000000d000000dee000033eeef03340ef003400f000400000000000000
--- 099:000000000ddddde00deeeef00efffff000034000000340000003400000000000
+-- 081:00003400000034000000340000ddddde00deeeef00efffff0000000000000000
+-- 082:0000330000030030003333340033334400343434000343400000000000000000
+-- 083:0000033400003340000d340000dee000000eeef00000ef000000f00000000000
+-- 096:0000000000000030003003000300000000000000000300000030000000000000
+-- 097:000000000ddddde00deeeef00efffff000034000000340000003400000000000
+-- 098:0000000000033000003003000333334003333440034343400034340000000000
+-- 099:000000000000d000000dee000033eeef03340ef003400f000400000000000000
+-- 100:000000000ccc00000cdd00000cdccc000cdcdd00000cdd00000cdd0000000000
+-- 104:ccccccccc000000cc000000cc000000cc000000cc000000cc000000ccccccccc
 -- 112:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
 -- 113:0000033000003344000334440033444003344400333340003333000003300000
 -- 114:00cc11000c111110c11cc111c113131111c13113111311130111113000113300
@@ -325,6 +351,16 @@ end
 -- 136:2200002220000002000000000000000000000000000000002000000222000022
 -- 137:0000002200000220000000000022022002202200000000000022000002200000
 -- 138:0000000000020000000200000002000020020020020202000022200000020000
+-- 144:000000cc00000cc00000000000cc0cc00cc0cc000000000000cc00000cc00000
+-- 145:000000000cccccc00cccccc00cccccc0000cc000000cc000000cc00000000000
+-- 146:00000000000cc00000c00c000cccccc00cccccc00cccccc000cccc0000000000
+-- 147:000000000000c000000ccc0000cccccc0ccc0cc00cc00c000c00000000000000
+-- 148:000000000ccc00000ccc00000ccccc000ccccc00000ccc00000ccc0000000000
+-- 160:0000002200000220000000000022022002202200000000000022000002200000
+-- 161:0000000002222220022222200222222000022000000220000002200000000000
+-- 162:0000000000022000002002000222222002222220022222200022220000000000
+-- 163:0000000000002000000222000022222202220220022002000200000000000000
+-- 164:0000000002220000022200000222220002222200000222000002220000000000
 -- </TILES>
 
 -- <MAP>
