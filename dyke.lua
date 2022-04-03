@@ -49,7 +49,19 @@ objecttypes = {
     cuttable=true,
     re=10,
     cutgain={1,0,0,0},
-    cuttime=30
+    cuttime=30,
+    draw = function(o)
+      x = o.x*8-sx
+      y = o.y*8
+      if o.re > 6 then
+        spr(48,x,y,0, 1, 0, 0, 2, 2)
+      elseif o.re > 3 then
+        spr(48,x,y+8,0, 1, 0, 0, 2, 1)
+      elseif o.re > 0 then
+        spr(33,x,y+8,0, 1)
+      end
+    end 
+    
   },
 }
 
@@ -69,8 +81,12 @@ end
 
 function drawobject(o)
   ty = o.type
-  sp = ty.sprites[o.state]
-  spr(sp,o.x*8-sx,o.y*8,0, 1, 0, 0, ty.sx, ty.sy) 
+  if ty.draw then
+    ty.draw(o)
+  else 
+    sp = ty.sprites[o.state]
+    spr(sp,o.x*8-sx,o.y*8,0, 1, 0, 0, ty.sx, ty.sy)
+  end 
 end
 
 
@@ -91,7 +107,13 @@ end
 for x=0,levelwidth do
   for y=0,levelheight do
     if mget(x,y) == 224 then
-      createobject(objecttypes[2],x,y)
+      type = objecttypes[2]
+      for xx = x, x+type.sx-1 do
+        for yy = y, y+type.sy-1 do
+          mset(xx,yy, 0)
+        end
+      end
+      createobject(type,x,y)
     end
   end
 end
@@ -187,13 +209,17 @@ function OVR()
           ptx = workpoint(left, right)
           if mx >= left and mx <= right and my >= o.y and my <= o.y + ty.sy -1 then
             if to == 3 and ty.cuttable then
-              sp = 146
-              ct = "cut " .. ty.name .. " to get " .. coststring(ty.cutgain) .. ": " .. timestring(walktimetox(ptx) + ty.cuttime)
-              if l then
-                tb = o
-                wo = true
-                tx = ptx
-                tl = 0
+              if o.re > 0 then
+                sp = 146
+                ct = "cut " .. ty.name .. " to get " .. coststring(ty.cutgain) .. ": " .. timestring(walktimetox(ptx) + ty.cuttime) .. " ("..o.re.."x left)"
+                if l then
+                  tb = o
+                  wo = true
+                  tx = ptx
+                  tl = 0
+                end
+              else
+                ct = "no more resources left"
               end
             end
           end
