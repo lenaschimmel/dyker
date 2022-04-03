@@ -5,11 +5,16 @@
 -- script: lua
 t=0 --global time
 px=12 -- player x (y is not saved, but computed)
-tx=12 -- target x (e.g. for construction)
-pf=0 -- player flip (looking direction)
+tx=12 -- target x (to walk to)
+
+bx=0 -- build target x
+by=0 -- build target y
 tb=0 -- to build (0 = none, 1 = dyke)
+to=0 -- tool (0=walk, 1=build, 2=collect, 3=cut, 4=card)
+wo = false -- working, time passing, accept no input during this
+
+pf=0 -- player flip (walking direction)
 sx=0 -- scroll x in pixel
-to=0 -- tool (0 = walk, 1=build, 2=collect)
 sb = 30 -- scroll sensitive border
 re = {5, 0, 0} -- ressources (stone, wood, score)
 wt = 120 -- water tics
@@ -30,7 +35,7 @@ function OVR()
 
   -- show actions
   prints("Action:", 16*6, 8, 12)
-  for i=0,6 do
+  for i=0,4 do
     spr(96 + i, 144 + 12*i, 8, 0)
     if to==i then
       spr(104, 144 + 12*i, 8, 0)
@@ -41,67 +46,80 @@ function OVR()
   -- draw cursor
   sp = 119
   if my > 2 then -- lower screen part
-    if to == 0 then -- walk
-      sp = 160 + to -- disabled
-      if isempty(mx,my) then
-        for ly=my+1,levelheight do
-          if not isempty(mx,ly) then
-            if isblock(mx, ly) then
-              if ly - 1 ~= my then
-                spr(122,mx*8-sx,ly*8-8,0)
+    if wo then
+      sp = 102
+    else
+      if to == 0 then -- walk
+        sp = 160 + to -- disabled
+        if isempty(mx,my) then
+          for ly=my+1,levelheight do
+            if not isempty(mx,ly) then
+              if isblock(mx, ly) then
+                if ly - 1 ~= my then
+                  spr(122,mx*8-sx,ly*8-8,0)
+                end
+                sp = sp - 16 -- enable
+                ct = "Walk here: 4*"
+                if l then
+                  tx = mx
+                  wo = true
+                end
+              else
+                ct = "Not walkable"
               end
-              sp = sp - 16 -- enable
-              ct = "Walk here: 4*"
-            else
-              ct = "Not walkable"
+              break
             end
-            break
           end
+        else
+          ct = "Not walkable"
         end
-      else
-        ct = "Not walkable"
       end
-    end
-    if to == 1 and tb==0 then
-      sp = 136
-      if re[1] == 0 then
-        ct = "No stones to build dyke"
-      elseif not isvalidblockpos(mx,my) then
-        ct = "Cant build dyke here"
-      else
-        sp = 120
-        ct = "Build dyke here: 1# 7*"
-        if l and re[1] > 0 then
-          tx = mx
-          ty = my
-          tb=1
-          re[1]=re[1]-1
-          --mset(mx,my,3)
+      if to == 1 then
+        sp = 136
+        if re[1] == 0 then
+          ct = "No stones to build dyke"
+        elseif not isvalidblockpos(mx,my) then
+          ct = "Cant build dyke here"
+        else
+          sp = 120
+          ct = "Build dyke here: 1# 7*"
+          if l then
+            tx = mx
+            bx = mx
+            ty = my
+            re[1]=re[1]-1
+            wo = true
+            mset(mx,my,4)
+          end
         end
       end
     end
     spr(sp,mx*8-sx,my*8,0)
-  else
+  else -- upper screen part
     mxc = x // 6
-    if my == 1 then
-      if mxc > 0 and mxc < 4 then
-        ct =  re[1] .. " stones"
-      end
-      if mxc > 4 and mxc < 8 then
-        ct =  re[2] .. " wood"
-      end
-      if mxc > 8 and mxc < 13 then
-        ct =  re[3] .. " score"
-      end
-     
+    if wo then
+      sp = 102
+    else
+      if my == 1 then
+        if mxc > 0 and mxc < 4 then
+          ct =  re[1] .. " stones"
+        end
+        if mxc > 4 and mxc < 8 then
+          ct =  re[2] .. " wood"
+        end
+        if mxc > 8 and mxc < 13 then
+          ct =  re[3] .. " score"
+        end
+      
 
-      for i=0,4 do
-        if mxc == 24 + 2*i then
-          sp = 120
-          texts = {"walk", "build dyke", "collect", "cut", "play card"}
-          ct = texts[i+1]
-          if l then
-            to = i
+        for i=0,4 do
+          if mxc == 24 + 2*i then
+            sp = 120
+            texts = {"walk", "build dyke", "collect", "cut", "play card"}
+            ct = texts[i+1]
+            if l then
+              to = i
+            end
           end
         end
       end
@@ -120,24 +138,32 @@ function TIC()
   my = math.floor(y / 8)
 
   -- update
-  t=t+1
-  if t % pt == 0 then
-	  if px < tx - 1 then
-		  px = px + 1
-				pf = 1
-		elseif px > tx + 1 then
-		  px = px - 1
-			pf = 0
-		elseif tb ~= 0 then
-		  tb = 0
-			setblock(tx,ty)
-		end
-	end
-	
-	if t % wt == 0 then
-    addwater()
-		t = 0
-	end
+  if wo then
+    t=t+1
+    if t % pt == 0 then
+      if px < tx then
+        px = px + 1
+          pf = 1
+      elseif px > tx then
+        px = px - 1
+        pf = 0
+      else 
+        if to == 0 then
+          wo = false
+        end
+        if tb ~= 0 then
+          tb = 0
+          setblock(tx,ty)
+          wo = false
+        end
+      end
+    end
+    
+    if t % wt == 0 then
+      addwater()
+      t = 0
+    end
+  end
 
   -- draw
   cls(11)
@@ -155,10 +181,35 @@ function TIC()
   sx = math.max(sx, 0)
 	sx = math.min(sx, (levelwidth * 8) - 240)
 	
-	for py = 0,18,1 do
-    if isblock(px,py) then
-      spr(7,px*8-sx,(py-2)*8,0, 1, pf, 0, 1, 2)
-      break
+  py = yabovefloor(px)
+  body = 7
+  legs = 23
+  pfb = pf -- body flip
+  if not wo then
+    if my < py - 4 then
+      body = 52
+    elseif mx < px - 4 then
+      pfb = 0
+    elseif mx > px + 4 then
+      pfb = 1
+    else
+      body = 53
+    end
+  end
+  if wo and px ~= tx then
+    legs = 68
+    if t % 20 >= 10 then
+      legs = 69
+    end
+  end
+  spr(body,px*8-sx,(py-1)*8,0, 1, pfb) -- body
+  spr(legs,px*8-sx,(py-0)*8,0, 1, pf) -- legs
+end
+
+function yabovefloor(x)
+  for y = 0,18,1 do
+    if isblock(x,y) then
+      return y - 1
     end	
 	end
 end
@@ -246,7 +297,7 @@ end
 --Prints text where x is the center of text.
 function printc(s,x,y,c)
   local w=print(s,0,-8)
-  prints(s,x-(w/2),y,c or 15, true)
+  prints(s,x-(w/2//6*6),y,c or 15, true)
 end
 
 --Prints text, replaces some symbols with sprites
@@ -278,12 +329,12 @@ end
 -- 001:3333333434333333333433333333333333333343334333333333433343333333
 -- 002:9999999999999989998999999999999999999989999999999899989999999999
 -- 003:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
+-- 004:0a0a0a0aa00000000000000aa00000000000000aa00000000000000aa0a0a0a0
 -- 007:0003330000ccc330009c9c3000cccc00000cc000066666606066660660666606
--- 008:0000005500005566000556660056666500665656055666560666766606676776
--- 009:5650000066660000666760005666670067666600667667707766767066676700
--- 010:000000000000000000000ccc00cccccd0cccdcdccccdcdddccdcddddcdcddddd
--- 011:0000000000000000ccd00000cdcdc000dcdcdc00dddddde0ddddded0ddddede0
--- 012:dddddee0ddddddd0eddddddc0ddddddd0cdddddccdcdddddccdcddddcdcddddd
+-- 011:0000005500005566000556660056666500665656055666560666766606676776
+-- 012:5650000066660000666760005666670067666600667667707766767066676700
+-- 013:000000000000000000000ccc00cccccd0cccdcdccccdcdddccdcddddcdcddddd
+-- 014:0000000000000000ccd00000cdcdc000dcdcdc00dddddde0ddddded0ddddede0
 -- 016:6566556677677676377633373333333333333343334333333333433343333333
 -- 017:a0ab00a09baaabaa9989a9ab9999999999899989999999999899989999999999
 -- 018:a00000009b000000aaa000009aab00009a8abb00999aaaa0989aa8b0999999aa
@@ -292,10 +343,10 @@ end
 -- 021:6566553377677333677633336333333333333343334333333333433343333333
 -- 022:3355665633377677333367763333333634333333333334333334333333333334
 -- 023:606666060099990000999900009009000090090000900900009009000ff0ff00
--- 024:0067673400777003000000030000000300000003000000330000033400003444
--- 025:6676700046670000407000004470000044000000440000004340000034440000
--- 026:ccdddddd0dddeded00000eee0000000000000000000000000000000000000000
--- 027:dddedee0ededee00eeee00000000000000000000000000000000000000000000
+-- 027:0067673400777003000000030000000300000003000000330000033400003444
+-- 028:6676700046670000407000004470000044000000440000004340000034440000
+-- 029:ccdddddd0dddeded00000eee0000000000000000000000000000000000000000
+-- 030:dddedee0ededee00eeee00000000000000000000000000000000000000000000
 -- 032:0000000000000000000000000002000002060020006506000005600000057000
 -- 033:0000000000000000000000000000000000000000000dde0000eeef00000eff00
 -- 034:3333333433344333344fe43333ef333333333333333333433334333343333333
@@ -309,9 +360,9 @@ end
 -- 049:000000000dd00000dddd0000ddeef000deeeff00deeeef00eefeef00effeede0
 -- 050:0000000000000000000000000000000000000000000000000000000600000060
 -- 051:0003330000ccc330009c9c3000cccc00000cc000666666600066660600666606
--- 052:0003330000ccc330009c9c3000cccc00000cc000066666606066660660666606
+-- 052:000333000039c930003ccc30003ccc30000ccc00066666606066660660666606
 -- 053:00033300003ccc300039c930003ccc30000ccc00066666606066660660666606
--- 054:000333000039c930003ccc30003ccc30000ccc00066666606066660660666606
+-- 054:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
 -- 055:0000000500000056000000560000006600000007000000030000000300000003
 -- 056:5600000066600000667000007700000040000000400000004000000040000000
 -- 057:0000000000000000000000000000000300000003000000330000033400003444
@@ -323,16 +374,31 @@ end
 -- 067:006666060099990000999900009009000090090000900900009009000ff0ff00
 -- 068:006666060099990000999900099009000900090009000900ff0009000000ff00
 -- 069:006666060099990000999900009099000090900000909000009ff0000ff00000
+-- 070:ccccccccc0000c0cc0000c0cccccccccc0c0000cc0c0000cc0c0000ccccccccc
+-- 071:0000000c000000c0000000c0000000c00000000c0000000c0000000c0000000c
+-- 072:cc00000000c0000000c000000c000000c0000000c0000000c0000000c0000000
+-- 075:000000cc0000cc00000c000000c0000000c000000c0000000c0000000c000000
+-- 076:ccc00000000c00000000c00000000c0000000c00000000c0000000c000000c00
 -- 080:00000c000c00c000c00000000000000000c000000c0000000000000000000000
 -- 081:00003400000034000000340000ddddde00deeeef00efffff0000000000000000
 -- 082:0000330000030030003333340033334400343434000343400000000000000000
 -- 083:0000033400003340000d340000dee000000eeef00000ef000000f00000000000
+-- 086:2222222220000202200002022222222220200002202000022020000222222222
+-- 087:0000000200000020000000200000002000000002000000020000000200000002
+-- 088:2200000000200000002000000200000020000000200000002000000020000000
+-- 089:0000000000000000000000000000000c0000000c000000c000000c000000c000
+-- 090:000000000000000000000000cc0000000c0000000c00000000c00000000c0000
+-- 091:00c00cc000ccc00c0000000c0000000c0000000c000000c000000c000000c000
+-- 092:0000c000000c000000c0000000c000000c0000000c00000000c00000000c0000
 -- 096:0000000000000030003003000300000000000000000300000030000000000000
 -- 097:000000000ddddde00deeeef00efffff000034000000340000003400000000000
 -- 098:0000000000033000003003000333334003333440034343400034340000000000
 -- 099:000000000000d000000dee000033eeef03340ef003400f000400000000000000
 -- 100:000000000ccc00000cdd00000cdccc000cdcdd00000cdd00000cdd0000000000
+-- 102:00ccc0000c0c0c00c00c00c0c00cc0c0c00000c00c000c0000ccc00000000000
 -- 104:ccccccccc000000cc000000cc000000cc000000cc000000cc000000ccccccccc
+-- 107:0000002200002200000200000020000000200000020000000200000002000000
+-- 108:2220000000020000000020000000020000000200000000200000002000000200
 -- 112:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
 -- 113:0000033000003344000334440033444003344400333340003333000003300000
 -- 114:00cc11000c111110c11cc111c113131111c13113111311130111113000113300
@@ -342,6 +408,8 @@ end
 -- 120:cc0000ccc000000c00000000000000000000000000000000c000000ccc0000cc
 -- 121:000000cc00000cc00000000000cc0cc00cc0cc000000000000cc00000cc00000
 -- 122:00000000000c0000000c0000000c0000c00c00c00c0c0c0000ccc000000c0000
+-- 123:0020022000222002000000020000000200000002000000200000020000002000
+-- 124:0000200000020000002000000020000002000000020000000020000000020000
 -- 128:eeeede00eeeede00dddddd00edeeee00edeeee00dddddd000000000000000000
 -- 129:0003300000334400033444003333400033330000033000000000000000000000
 -- 130:00cc00000c111000c1c11300c113130001113000003300000000000000000000
