@@ -17,7 +17,7 @@ pf=0 -- player flip (walking direction)
 sx=0 -- scroll x in pixel
 sb = 30 -- scroll sensitive border
 re = {5, 0, 0} -- ressources (stone, wood, score)
-wt = 120 -- water tics
+wt = 100 -- water tics
 pt = 10 -- player tics
 
 levelwidth = 60
@@ -33,7 +33,7 @@ objecttypes = {
     desc="stops water and you can walk on it",
     sx=1,
     sy=1,
-    sprites={4,38,54,54},
+    sprites={70,38,54,54},
     isblock=true
   }
 }
@@ -108,7 +108,7 @@ function OVR()
                   spr(122,mx*8-sx,ly*8-8,0)
                 end
                 sp = sp - 16 -- enable
-                ct = "Walk here: 4*"
+                ct = "Walk here: " .. coststring({}, walktimetox(mx))
                 if l then
                   tx = mx
                   wo = true
@@ -140,7 +140,7 @@ function OVR()
           else
             ptx = mx
           end
-          ct = "Build " .. ty.name .. " here: " .. coststring(ty.cost, math.abs(px - ptx) * pt)
+          ct = "Build " .. ty.name .. " here: " .. coststring(ty.cost, walktimetox(ptx))
           if l then
             tx = ptx
             bx = mx
@@ -181,6 +181,10 @@ function OVR()
   printc(ct, 120, 0, 12)
 end
 
+function walktimetox(x)
+  return  math.abs(px - x) * pt
+end
+
 function canpay(cost)
   for i = 1,3 do
     if re[i] < cost[i] then
@@ -199,16 +203,18 @@ end
 function coststring(cost, extratime)
   str = ""
   for i = 1,4 do
-    co = cost[i]
+    co = cost[i] or 0
+    cos = co
     if i == 4 then
       co = co + extratime
       co = co / wt
+      cos = string.format("%1.1f", co)
     end
     if co > 0 then
       if string.len(str) > 0 then
         str = str .. ", "
       end
-      str = str .. cost[i] .. " " .. re_symbols[i]
+      str = string.format("%s%s %s", str, cos, re_symbols[i])
     end
   end
   return str
@@ -238,24 +244,34 @@ function TIC()
   -- update
   if wo then
     t=t+1
-    if t % pt == 0 then
-      if px < tx then
-        px = px + 1
-          pf = 1
-      elseif px > tx then
-        px = px - 1
-        pf = 0
-      else -- reached target
-        if to == 0 then
-          wo = false
+    if px ~= tx then -- still walking
+      if t % pt == 0 then
+        if px < tx then
+          px = px + 1
+            pf = 1
+        else
+          px = px - 1
+          pf = 0
         end
-        if to == 1 and tb ~= nil then
-          tb.state = 3
-          if tb.type.isblock then
-            mset(tb.x,tb.y,3)
+      end
+    else -- doing something else
+      if to == 0 then
+        wo = false
+      end
+      if to == 1 and tb ~= nil then
+        if tb.state == 1 then -- planned -> building
+          tb.state = 2
+          tb.tl = tb.type.cost[4]
+        elseif tb.state == 2 then -- building -> finished
+          tb.tl = tb.tl - 1
+          if tb.tl <= 0 then
+            tb.state = 3
+            if tb.type.isblock then
+              mset(tb.x,tb.y,3)
+            end
+            tb = nil
+            wo = false
           end
-          tb = nil
-          wo = false
         end
       end
     end
@@ -297,13 +313,16 @@ function TIC()
       legs = 69
     end
   end
-  spr(body,px*8-sx,(py-1)*8,0, 1, pfb) -- body
-  spr(legs,px*8-sx,(py-0)*8,0, 1, pf) -- legs
   if wo and to > 0 and to < 4 then
     dx = px - 1 + 2 * pf
     spr(50,dx*8-sx,(py-1)*8,0, 1, pf) -- arm
     spr(to+80,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
+    body = 51 -- no double arm
+    legs = 67
   end
+  spr(body,px*8-sx,(py-1)*8,0, 1, pfb) -- body
+  spr(legs,px*8-sx,(py-0)*8,0, 1, pf) -- legs
+
 end
 
 function yabovefloor(x)
