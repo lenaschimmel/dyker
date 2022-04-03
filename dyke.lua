@@ -36,7 +36,9 @@ objecttypes = {
     sx=1,
     sy=1,
     sprites={70,38,54,54},
-    isblock=true
+    isblock=true,
+    spoutline=70,
+    spoutlinered=86,
   },
   {
     name="rock",
@@ -197,7 +199,7 @@ function OVR()
   end
 
   ct = "" --center text
-  -- draw cursor
+  -- draw cursor, handle potential actions
   sp = 119
   if my > 2 then -- lower screen part
     if wo then
@@ -236,8 +238,9 @@ function OVR()
           ct = "Not enough " .. re_symbols[mis] .. " to build " .. ty.name
         elseif not isvalidblockpos(mx,my) then
           ct = "Cant build " .. ty.name .. " here"
+          sp = ty.spoutlinered -- no real cursor, we draw the building outline
         else
-          sp = sp - 16 -- enable
+          sp = ty.spoutline -- no real cursor, we draw the building outline
           left = mx
           right = mx + ty.sx - 1
           ptx = workpoint(left, right)
@@ -256,6 +259,7 @@ function OVR()
             end
           end
         end
+        spr(sp,mx*8-sx,my*8,0,1,0,0,ty.sx, ty.sy)
       end
 
       if to == 3 or to == 4 then -- collect / cut
@@ -444,13 +448,11 @@ function TIC()
       if to == 4 then -- cut 
         ty = tb.type
         if tl == 0 then -- start cutting
-          trace("Start cutting")
           tl = ty.cut.time
         end
         
         tl = tl - 1
         if tl <= 0 then -- finished collecting
-          trace("Finished cutting")
           tb.cut.re = tb.cut.re - 1
           earn(ty.cut.gain)
           tb = nil
@@ -499,7 +501,7 @@ function TIC()
   if wo and to > 1 and to < 5 then
     dx = px - 1 + 2 * pf
     spr(50,dx*8-sx,(py-1)*8,0, 1, pf) -- arm
-    spr(to+80,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
+    spr(to+79,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
     body = 51 -- no double arm
     legs = 67
   end
@@ -599,7 +601,6 @@ end
 --Prints text where x is the center of text.
 function printc(s,x,y,c)
   local w=print(s,0,-8,c or 15,true)
-  trace("print at " .. x-(w/2//6*6) .. " w=".. w ..": " .. s)
   prints(s,x-(w/2//6*6),y,c or 15)
 end
 
