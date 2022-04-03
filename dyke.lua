@@ -183,7 +183,21 @@ function createobject(type,tx,ty)
     type.create(object)
   end
   table.insert(objects, object)
+  for xx = tx, tx+type.sx-1 do
+    for yy = ty, ty+type.sy-1 do
+      mset(xx,yy, 4)
+    end
+  end
   return object
+end
+
+function destroyobject(o)
+  o.state = 4
+  for xx = o.x, o.x+o.type.sx-1 do
+    for yy = o.y, o.y+o.type.sy-1 do
+      mset(xx,yy, 0)
+    end
+  end
 end
 
 function drawobject(o)
@@ -221,11 +235,6 @@ for x=0,levelwidth do
       type = objecttypes[3]
     end
     if type then
-      for xx = x, x+type.sx-1 do
-        for yy = y, y+type.sy-1 do
-          mset(xx,yy, 0)
-        end
-      end
       o = createobject(type,x,y)
     end
   end
@@ -547,6 +556,9 @@ function TIC()
             end
             if to == 4 then
               tb.cut.re = tb.cut.re - 1
+              if tb.cut.re == 0 then
+                destroyobject(tb)
+              end
             end
             earn(action.gain)
             tb = nil
