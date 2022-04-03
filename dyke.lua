@@ -20,11 +20,12 @@ sb = 30 -- scroll sensitive border
 re = {5, 0, 0} -- ressources (stone, wood, score)
 wt = 100 -- water tics
 pt = 10 -- player tics
+tm = 100 -- target money = win condition
 
 levelwidth = 60
 levelheight = 17
 
-re_names={"stone", "wood", "score", "time"}
+re_names={"stone", "wood", "coins", "time"}
 re_symbols={"#", "/", "$", "*"}
 to_names={"walk", "build dyke", "collect", "cut", "play card", "wait"}
 
@@ -59,7 +60,7 @@ objecttypes = {
       y = o.y*8
       if o.cut.re > 6 then
         spr(48,x,y,0, 1, 0, 0, 2, 2)
-      elseif o.cut.re > 3 then
+      elseif o.cut.re > 2 then
         spr(48,x,y+8,0, 1, 0, 0, 2, 1)
       elseif o.cut.re > 0 then
         spr(33,x,y+8,0, 1)
@@ -76,7 +77,7 @@ objecttypes = {
     isblock=false,
     cut = {
       verb = "cut",
-      re = 1,
+      re = 0,
       gain = {0,10,0,0},
       time = 250
     },
@@ -97,6 +98,7 @@ objecttypes = {
         o.ttg = o.ttg - 1
       elseif o.state == 2 then
         o.state = 3
+        o.cut.re = 1
         stopwait()
       end
 
@@ -119,7 +121,7 @@ objecttypes = {
     end,
 
     draw = function(o)
-      if o.cut.re == 0 then
+      if o.state == 3 and o.cut.re == 0 then
         o.state = 4
       end
       x = o.x*8-sx
@@ -357,8 +359,11 @@ function OVR()
     else
       if my == 1 then
         for i = 1,3 do
-          if mxc > i*4 - 4 and mxc < i*4 then
+          if mxc > i*4 - 4 and (mxc < i*4 or (i==3 and mxc < i*4+2)) then
             ct =  re[i] .. " " .. re_names[i]
+            if i == 3 then
+              ct = ct .. " (earn " .. tm .. "$ to win)"
+            end
           end
         end
         for i=1,6 do
@@ -726,7 +731,7 @@ end
 -- 003:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
 -- 004:0a0a0a0aa00000000000000aa00000000000000aa00000000000000aa0a0a0a0
 -- 005:65665566776476763773473737333433343333433343343434334f334f333333
--- 007:0003330000ccc330009c9c3000cccc30000cc330066666606066660660666606
+-- 007:0033330000ccc330009c9c3000cccc30000cc330066666606066660660666606
 -- 011:0000005500005566000556660056666500665656055666560666766606676776
 -- 012:5650000066660000666760005666670067666600667667707766767066676700
 -- 013:000000000000000000000ccc00cccccd0cccdcdccccdcdddccdcddddcdcddddd
@@ -755,7 +760,7 @@ end
 -- 048:00000000000000000000000000000000000d000000ddd00d00ddee0d0ddeeedd
 -- 049:000000000dd00000dddd0000ddeef000deeeff00deeeef00eefeef00effeede0
 -- 050:0000000000000000000000000000000000000000000000000000000600000060
--- 051:0003330000ccc330009c9c3000cccc30000cc330666666600066660600666606
+-- 051:0033330000ccc330009c9c3000cccc30000cc330666666600066660600666606
 -- 052:000333000039c930003ccc30003ccc30003ccc30066666606066660660666606
 -- 053:00033300003ccc300039c930003ccc30003ccc30066666606066660660666606
 -- 054:eeeeedeeeeeefdeeeeeffdeeddddddddeedeeeeeefdeeeeeffdeeeeedddddddd
