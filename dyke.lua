@@ -46,19 +46,13 @@ function lmset(x,y,t)
   mset(x+levelx, y+levely, t)
 end
 
+globalstate = "play" -- title, levelstart, play, levelend, gamewon
+
 re_names={"stone", "wood", "coins", "time", "cards"}
 re_symbols={"#", "/", "$", "*", "@"}
 to_names={"walk", "build dyke", "collect", "cut", "wait", "play card"}
 
 levels = {
-  {
-    name = "Level three",
-    x = 87,
-    y = 0,
-    w = 53,
-    m = 130,
-    re = {10, 10, 10}
-  },
   {
     name = "Introduction",
     x = 30,
@@ -74,6 +68,14 @@ levels = {
     w = 60,
     m = 100,
     re = {5, 5, 5}
+  },
+  {
+    name = "Level three",
+    x = 87,
+    y = 0,
+    w = 53,
+    m = 130,
+    re = {10, 10, 10}
   },
 }
 
@@ -267,7 +269,12 @@ objecttypes = {
       verb = "butcher",
       re = 0,
       gain = {0,0,25,0},
-      time = 200
+      time = 200,
+      effect = function(o)
+        destroyobject(o)
+        o.state = 5
+        o.butchered = true
+      end
     },
     collect = {
       verb = "shear",
@@ -303,11 +310,6 @@ objecttypes = {
         end
       end
 
-      -- die when it is butchered
-      if o.state == 3 and o.cut.re == 0 then
-        o.state = 4
-      end
-
       if o.state < 4 then
         for xx = o.x, o.x+o.type.sx-1 do
           for yy = o.y, o.y+o.type.sy-1 do
@@ -329,6 +331,11 @@ objecttypes = {
       x = o.x*8-sx
       y = o.y*8
       sp = o.type.sprites[o.state]
+      if o.state == 5 then
+        if o.butchered then
+          sp = 0
+        end
+      end
       if o.state == 3 then
         if o.collect.re == 0 then
           sp = 177
@@ -343,7 +350,7 @@ objecttypes = {
   },
   mine={
     name="mine",
-    cost={2,5,5,300},
+    cost={2,5,0,300},
     desc="mine an unlimited supply of stones",
     sx=2,
     sy=2,
@@ -516,278 +523,282 @@ function loadlevel(i)
 end
 
 function OVR()
-  map(levelx,levely,levelwidth,levelheight,-sx,0,0)
+  if globalstate == "levelstart" or globalstate == "play" or globalstate == "levelend" then
+    map(levelx,levely,levelwidth,levelheight,-sx,0,0)
 
-  x,y,l = mouse()
-  if not l then
-    clicklock = false
-  end
-  my = y // 8
-
-  -- show resources
-  te = string.format("%2d# %2d/ %4d$",re[1],re[2],re[3])
-  prints(te, 6, 8, 12)
-
-  -- show actions
-  prints("Action:", 16*6, 8, 12)
-  for i=1,6 do
-    spr(95 + i, 132 + 12*i, 8, 0)
-    if to==i then
-      spr(104, 132 + 12*i, 8, 0)
+    x,y,l = mouse()
+    if not l then
+      clicklock = false
     end
+    my = y // 8
+
+    -- show resources
+    te = string.format("%2d# %2d/ %4d$",re[1],re[2],re[3])
+    prints(te, 6, 8, 12)
   end
-  prints(""..#handcards, 212, 8, 14)
 
   ct = "" --center text
   -- draw cursor, handle potential actions
   local sp = 119
 
-  if to==6 then
-    sp = 119
-    local ci, bu = paintcards(x/8, y/8)
-    if bu then
-      card = handcards[ci]
-      mis = canpay(card.cost)
-      if mis > 0 then
-        sp = 164
-        ct = "Not enough " .. re_symbols[mis] .. " to play '" .. card.title .. "'"
-        paintcards(0,0,true,2)
-      else
-        sp = 148
-        ct = "Play the card '" .. card.title .. "'"
-        paintcards(0,0,true,5)
-        if l and not clicklock then
-          if not card.buildingtype then
-            pay(card.cost) -- buildings are paid later
-          end
-          selectedcard = 0
-          trace("Remove card " .. ci)
-          table.remove(handcards, ci)
-          card.y = 14
-          if card.effect then
-            card.effect()
-          elseif card.gain then
-            earn(card.gain)
-          end
+  if globalstate == "play" then
+    -- show actions
+    prints("Action:", 16*6, 8, 12)
+    for i=1,6 do
+      spr(95 + i, 132 + 12*i, 8, 0)
+      if to==i then
+        spr(104, 132 + 12*i, 8, 0)
+      end
+    end
+    prints(""..#handcards, 212, 8, 14)
 
-          if card.ispermanent then
-            table.insert(permanents, card)
-          end
+    if to==6 then
+      sp = 119
+      local ci, bu = paintcards(x/8, y/8)
+      if bu then
+        card = handcards[ci]
+        mis = canpay(card.cost)
+        if mis > 0 then
+          sp = 164
+          ct = "Not enough " .. re_symbols[mis] .. " to play '" .. card.title .. "'"
+          paintcards(0,0,true,2)
+        else
+          sp = 148
+          ct = "Play the card '" .. card.title .. "'"
+          paintcards(0,0,true,5)
+          if l and not clicklock then
+            if not card.buildingtype then
+              pay(card.cost) -- buildings are paid later
+            end
+            selectedcard = 0
+            trace("Remove card " .. ci)
+            table.remove(handcards, ci)
+            card.y = 14
+            if card.effect then
+              card.effect()
+            elseif card.gain then
+              earn(card.gain)
+            end
 
-          if card.buildingtype then
-            buildingcard = card
-            buildingtype = card.buildingtype
-            clicklock = true
-            to = 2
+            if card.ispermanent then
+              table.insert(permanents, card)
+            end
+
+            if card.buildingtype then
+              buildingcard = card
+              buildingtype = card.buildingtype
+              clicklock = true
+              to = 2
+            end
           end
         end
+      elseif ci > 0 and selectedcard ~= ci then
+        ct = "Look at card '" .. handcards[ci].title .. "'"
+      elseif ci == 0 and selectedcard > 0 then
+        ct = "Move card out of the way"
       end
-    elseif ci > 0 and selectedcard ~= ci then
-      ct = "Look at card '" .. handcards[ci].title .. "'"
-    elseif ci == 0 and selectedcard > 0 then
-      ct = "Move card out of the way"
+      if l then
+        selectedcard = ci
+        clicklock = true
+      end
     end
-    if l then
-      selectedcard = ci
-      clicklock = true
-    end
-  end
 
-  if my > 2 then -- lower screen part
-    if wo then
-      sp = 102
-    else
-      if to ~= 6 then
-      sp = 159 + to -- disabled
-      end
-      if to == 1 then -- walk
-        ly = yabovefloor(mx)
-        if iswalkable(mx,my) then
-          if isreachable(mx,ly) then
-            if ly ~= my then
-              spr(122,mx*8-sx,ly*8,0)
-            end
-            sp = sp - 16 -- enable
-            ct = "Walk here: " .. timestring(walktimetox(mx))
-            if l then
-              tx = mx
-              wo = true
+    if my > 2 then -- lower screen part
+      if wo then
+        sp = 102
+      else
+        if to ~= 6 then
+        sp = 159 + to -- disabled
+        end
+        if to == 1 then -- walk
+          ly = yabovefloor(mx)
+          if iswalkable(mx,my) then
+            if isreachable(mx,ly) then
+              if ly ~= my then
+                spr(122,mx*8-sx,ly*8,0)
+              end
+              sp = sp - 16 -- enable
+              ct = "Walk here: " .. timestring(walktimetox(mx))
+              if l then
+                tx = mx
+                wo = true
+              end
+            else
+              spr(138,mx*8-sx,ly*8,0)
+              ct = "Not reachable"
             end
           else
-            spr(138,mx*8-sx,ly*8,0)
-            ct = "Not reachable"
+            ct = "Not walkable"
           end
-        else
-          ct = "Not walkable"
         end
-      end
 
 
-      if to == 2 then -- build
-        ty = buildingtype or objecttypes['dyke']
+        if to == 2 then -- build
+          ty = buildingtype or objecttypes['dyke']
 
-        wantscancel = false
-        if ty == objecttypes['dyke'] then
-          validpos = isvaliddykepos(mx,my)
-        else
-          printc("Place " .. ty.name, 110, 8*3)
-          printc("Click here to cancel", 110, 8*4)
-          if my >= 3 and my <= 4 then
-            wantscancel = true
-          end
-          validpos = true
-          for xx = 1, ty.sx do
-            for yy = 1, ty.sy do
-              if not isbuildable(xx+mx-1, yy+my-1) then
+          wantscancel = false
+          if ty == objecttypes['dyke'] then
+            validpos = isvaliddykepos(mx,my)
+          else
+            printc("Place " .. ty.name, 110, 8*3)
+            printc("Click here to cancel", 110, 8*4)
+            if my >= 3 and my <= 4 then
+              wantscancel = true
+            end
+            validpos = true
+            for xx = 1, ty.sx do
+              for yy = 1, ty.sy do
+                if not isbuildable(xx+mx-1, yy+my-1) then
+                  validpos = false
+                end
+              end
+              if not isblock(xx+mx-1, my+ty.sy) then
                 validpos = false
               end
             end
-            if not isblock(xx+mx-1, my+ty.sy) then
-              validpos = false
-            end
           end
-        end
-        mis = canpay(ty.cost)
-        if wantscancel then
-          ct = "That card will go back to your hand"
-          if l then
-            buildingtype = nil
-            table.insert(handcards, buildingcard)
-            buildingcard = nil
-            to = 0
-          end
-        elseif mis > 0 then
-          ct = "Not enough " .. re_symbols[mis] .. " to build " .. ty.name
-        elseif not validpos then
-          ct = "Cant build " .. ty.name .. " here"
-          sp = ty.spoutlinered -- no real cursor, we draw the building outline
-        else
-          sp = ty.spoutline -- no real cursor, we draw the building outline
-          left = mx
-          right = mx + ty.sx - 1
-          ptx = workpoint(left, right)
-          if isreachable(ptx, my) then
-            ct = "Build " .. ty.name .. " here: " .. coststring(ty.cost, walktimetox(ptx))
-            if l and not clicklock then
+          mis = canpay(ty.cost)
+          if wantscancel then
+            ct = "That card will go back to your hand"
+            if l then
               buildingtype = nil
+              table.insert(handcards, buildingcard)
               buildingcard = nil
-              tx = ptx
-              bx = mx
-              by = my
-              pay(ty.cost)
-              wo = true
-              tb = createobject(ty,mx,my)
-              if left > px then -- must reach to the right
-                pf = 1
-              elseif right < px then -- must reach to the left
-                pf = 0
-              end
-            else
-              ct = "Can't reach this place."
+              to = 0
             end
-          end
-        end
-        spr(sp,mx*8-sx,my*8,0,1,0,0,ty.sx, ty.sy)
-      end
-
-      if to == 3 or to == 4 then -- collect / cut
-        for _,o in pairs(objects) do
-          ty = o.type
-          left = o.x
-          right = o.x + ty.sx -1
-          ptx = workpoint(left, right)
-          if mx >= left and mx <= right and my >= o.y and my <= o.y + ty.sy -1 then
-            action = nil
-
-            releft = 0
-            if to == 3 and ty.collect then
-              action = ty.collect
-              releft = o.collect.re
-            elseif to == 4 and ty.cut then
-              action = ty.cut
-              releft = o.cut.re
-            end
-
-            if action then
-              if releft > 0 then
-                if isreachable(ptx, my) then
-                  sp = sp - 16 -- enable
-                  actiontime = action.time
-                  if action.verb == "cut" then
-                    actiontime = actiontime * cuttimemulti
-                  end
-                  ct = action.verb .. " " .. ty.name .. " to get " .. coststring(action.gain) .. ": " .. timestring(walktimetox(ptx) + actiontime) .. " ("..releft.."x left)"
-                  if l then
-                    tb = o
-                    wo = true
-                    tx = ptx
-                    tl = 0
-                  end
-                else
-                  ct = "Can't reach this place."
+          elseif mis > 0 then
+            ct = "Not enough " .. re_symbols[mis] .. " to build " .. ty.name
+          elseif not validpos then
+            ct = "Cant build " .. ty.name .. " here"
+            sp = ty.spoutlinered -- no real cursor, we draw the building outline
+          else
+            sp = ty.spoutline -- no real cursor, we draw the building outline
+            left = mx
+            right = mx + ty.sx - 1
+            ptx = workpoint(left, right)
+            if isreachable(ptx, my) then
+              ct = "Build " .. ty.name .. " here: " .. coststring(ty.cost, walktimetox(ptx))
+              if l and not clicklock then
+                buildingtype = nil
+                buildingcard = nil
+                tx = ptx
+                bx = mx
+                by = my
+                pay(ty.cost)
+                wo = true
+                tb = createobject(ty,mx,my)
+                if left > px then -- must reach to the right
+                  pf = 1
+                elseif right < px then -- must reach to the left
+                  pf = 0
                 end
               else
-                ct = "nothing to " .. action.verb .. " there"
+                ct = "Can't reach this place."
+              end
+            end
+          end
+          spr(sp,mx*8-sx,my*8,0,1,0,0,ty.sx, ty.sy)
+        end
+
+        if to == 3 or to == 4 then -- collect / cut
+          for _,o in pairs(objects) do
+            ty = o.type
+            left = o.x
+            right = o.x + ty.sx -1
+            ptx = workpoint(left, right)
+            if mx >= left and mx <= right and my >= o.y and my <= o.y + ty.sy -1 then
+              action = nil
+
+              releft = 0
+              if to == 3 and ty.collect then
+                action = ty.collect
+                releft = o.collect.re
+              elseif to == 4 and ty.cut then
+                action = ty.cut
+                releft = o.cut.re
+              end
+
+              if action then
+                if releft > 0 then
+                  if isreachable(ptx, my) then
+                    sp = sp - 16 -- enable
+                    actiontime = action.time
+                    if action.verb == "cut" then
+                      actiontime = actiontime * cuttimemulti
+                    end
+                    ct = action.verb .. " " .. ty.name .. " to get " .. coststring(action.gain) .. ": " .. timestring(walktimetox(ptx) + actiontime) .. " ("..releft.."x left)"
+                    if l then
+                      tb = o
+                      wo = true
+                      tx = ptx
+                      tl = 0
+                    end
+                  else
+                    ct = "Can't reach this place."
+                  end
+                else
+                  ct = "nothing to " .. action.verb .. " there"
+                end
+              end
+            end
+          end
+        end
+
+      end
+      spr(sp,mx*8-sx,my*8,0)
+    else -- upper screen part
+      mxc = x // 6
+      if wo then
+        sp = 102
+      else
+        if my == 1 then
+          for i = 1,3 do
+            if mxc > i*4 - 4 and (mxc < i*4 or (i==3 and mxc < i*4+2)) then
+              ct =  re[i] .. " " .. re_names[i]
+              if i == 3 then
+                ct = ct .. " (earn " .. tm .. "$ to win)"
+              end
+            end
+          end
+          for i=1,6 do
+            if mxc == 22 + 2*i then
+              sp = 120
+              ct = to_names[i]
+              if i == 5 then -- wait
+                if not canwait() then
+                  ct = "Nothing to wait for"
+                  sp = 136
+                end
+              end
+
+              if i == 6 then -- card
+                if #handcards == 0 then
+                  ct = "No cards"
+                  sp = 136
+                end
+              end
+              
+              if l then
+                -- return the card if the player currently builds a card building
+                if to == 2 and i ~= 2 and buildingcard then
+                  buildingtype = nil
+                  table.insert(handcards, buildingcard)
+                  buildingcard = nil
+                end
+
+                if (i ~= 5 or canwait()) and (i ~= 6 or #handcards > 0) then
+                  to = i
+                end
+                if to == 5 and canwait() then
+                  wo = true
+                end
               end
             end
           end
         end
       end
-
+      spr(sp,mxc*6,my*8,0) -- cursor
     end
-    spr(sp,mx*8-sx,my*8,0)
-  else -- upper screen part
-    mxc = x // 6
-    if wo then
-      sp = 102
-    else
-      if my == 1 then
-        for i = 1,3 do
-          if mxc > i*4 - 4 and (mxc < i*4 or (i==3 and mxc < i*4+2)) then
-            ct =  re[i] .. " " .. re_names[i]
-            if i == 3 then
-              ct = ct .. " (earn " .. tm .. "$ to win)"
-            end
-          end
-        end
-        for i=1,6 do
-          if mxc == 22 + 2*i then
-            sp = 120
-            ct = to_names[i]
-            if i == 5 then -- wait
-              if not canwait() then
-                ct = "Nothing to wait for"
-                sp = 136
-              end
-            end
-
-            if i == 6 then -- card
-              if #handcards == 0 then
-                ct = "No cards"
-                sp = 136
-              end
-            end
-            
-            if l then
-              -- return the card if the player currently builds a card building
-              if to == 2 and i ~= 2 and buildingcard then
-                buildingtype = nil
-                table.insert(handcards, buildingcard)
-                buildingcard = nil
-              end
-
-              if (i ~= 5 or canwait()) and (i ~= 6 or #handcards > 0) then
-                to = i
-              end
-              if to == 5 and canwait() then
-                wo = true
-              end
-            end
-          end
-        end
-      end
-    end
-    spr(sp,mxc*6,my*8,0) -- cursor
   end
   printc(ct, 120, 0, 12)
 end
@@ -1241,30 +1252,35 @@ function mysplit (inputstr, sep)
   return t
 end
 
+function paintframe(x,y,w,h,r)
+  myspr(204, x,y)
+  myspr(207, x+w-1,y)
+  myspr(252, x,y+h-1)
+  myspr(255, x+w-1,y+h-1)
+  stains = {222, 237, 238}
+  for xx = x+1, x+w-2 do
+    for yy = y+1, y+h-2 do
+      stain = stains[math.abs(r*2+x*19+y*17)%3+1]
+      myrspr(stain, 221, xx,yy, 0.03, r)
+    end
+    myrspr(205, 206, xx,y, 0.1, r)
+    myrspr(253, 254, xx,y + h - 1, 0.25, r)
+  end
+  for yy = y+1, y+h-2 do
+    myrspr(220, 236, x,yy, 0.1, r)
+    myrspr(223, 239, x + w - 1,yy, 0.25, r)
+  end
+  myspr(216, x+1,y+3)
+  for xx = x+2, x+w-3 do
+    myspr(217, xx,y+3)
+  end
+  myspr(218, x+w-2,y+3)
+end
+
 function paintcard(x,y,w,h,title,text,cost,r,onlybutton, buttoncolor)
   if not onlybutton then
-    myspr(204, x,y)
-    myspr(207, x+w-1,y)
-    myspr(252, x,y+h-1)
-    myspr(255, x+w-1,y+h-1)
-    stains = {222, 237, 238}
-    for xx = x+1, x+w-2 do
-      for yy = y+1, y+h-2 do
-        stain = stains[math.abs(r*2+x*19+y*17)%3+1]
-        myrspr(stain, 221, xx,yy, 0.03, r)
-      end
-      myrspr(205, 206, xx,y, 0.1, r)
-      myrspr(253, 254, xx,y + h - 1, 0.25, r)
-    end
-    for yy = y+1, y+h-2 do
-      myrspr(220, 236, x,yy, 0.1, r)
-      myrspr(223, 239, x + w - 1,yy, 0.25, r)
-    end
-    myspr(216, x+1,y+3)
-    for xx = x+2, x+w-3 do
-      myspr(217, xx,y+3)
-    end
-    myspr(218, x+w-2,y+3)
+    paintframe(x,y,w,h,r)
+
     print(title, x*8+6, y*8 + 6, 15)
     prints(coststring(cost, 0, true), x*8+6, (y+2)*8)
   end
@@ -1273,14 +1289,18 @@ function paintcard(x,y,w,h,title,text,cost,r,onlybutton, buttoncolor)
   if y > 13 or onlybutton then
     return
   end
+
+  textrect(text, x*8+6, (y+4)*8+6, w*8 - 12)
   
+end
+
+function textrect(text,x,tey,w)
   words = mysplit(text)
-  tex = x*8+6
-  tey = (y+4)*8+6
+  tex = x
   for _,word in pairs(words) do
     tw = print(word, 0, -10, 15, false, 1, true)
-    if tex + tw > x*8 + w*8 - 6 then
-      tex = x*8+6
+    if tex + tw > x + w then
+      tex = x
       tey = tey + 6
     end
     prints(word, tex, tey, 15, false, 1, true)
@@ -1366,7 +1386,7 @@ function definecards()
     },
     {
       title="Sheep",
-      text="Your sheep gives you wool ($) until you butcher it (more $).",
+      text="Your sheep gives you wool ($  ) until you butcher it (more $  ).",
       r=237,
       buildingtype=objecttypes["sheep"]
     },
@@ -1650,10 +1670,10 @@ start()
 -- 009:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002c0200000000000000000031101000000000000000000000000000000000000000000000000000000000003101014100000000000000000000000000000000000000000000000000005b0000b4000000000000000000000031505110101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 010:0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003132014100000e0000000031518042000000000000000000000000000000000000000000000000000000003151101061410000000000000000000000000000000000000000000000000000000000000000000000000000003151801010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 011:00000000000000000000000000000000000031012c0000000000000e1e0000000000000000000000000000003151101061410000000000315110101000000000000000000000000000000000000000000000000000000001511010101041b4000000000000000000000000000000000000000000000031015050015101410000b4000000315110108010421010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
--- 012:000000000000000000020000000000b400315110324100000000000f1f0000b4000000000000000000000031514242101061323201010151102210100000000000000000000000000000000000000000000000000000001010101010104100002c0000020000000000000000000000000000000000003110108010101061410000002c31511010801010421010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 012:000000000000000000020000000000b400315110324100000000000f1f0000b4000000000000000000000031514242101061323201010151102210100000000000000000000000000000000000000000000000000000001010101010104100002c0c00020000000000000000000000000000000000003110108010101061410000002c31511010801010421010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 013:00000000000031510132610141000002315110228061014100003101010141000000000000000000000031321010101010101010101042104210421000000000000000000000000000000000000000000000000000000010101010101061016101013201410000000e000e00000000000000000000003110101042101010610101010151101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
--- 014:00000000003151104242101061010150501010421042106101015110108061010141000000b400000031514210101042101010221010421010101010000000000000000000000000000000000000000000000000000000101010101010101010101010106141000000000002000000000099000000315110101010101010101010801042101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
--- 015:00002c023151101022101042104210801080421042101042101010421010101010614102000000003151101010102210424242421042424242424210000000000000000000000000000000000000000000000000000000101010101010101010101010101061010101013201014100020000002c00311010101042101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 014:00000000003151104242101061010150501010421042106101015110108061010141000000b400000031514210101042101010221010421010101010000000000000000000000000000000000000000000000000000000101010101010101010101010106141000c00000002000000000099000000315110101010101010101010801042101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 015:00002c02315110102210104210421080108042104210104210101042101010101061410200000000315110101010221042424242104242424242421000000000000000000000000000000000000000000000000000000010101010101010101010101010106101010101320101410c020000002c00311010101042101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 016:010101015142421010101042104280102210101010421010421010421010221010106101015050015110421010101010101010104210101010421010000000000000000000000000000000000000000000000000000000101010101010101010101010101010101010101010106101010101325001511010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 027:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- 032:210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
