@@ -325,6 +325,9 @@ function OVR()
     end
   end
 
+  cost = {0,0,5,4}
+  drawcard(2,2,9,13,"Woodseller", "When you cut a tree for #, you get 10$ extra.", cost, 234)
+
   ct = "" --center text
   -- draw cursor, handle potential actions
   sp = 119
@@ -527,17 +530,23 @@ function earn(gain)
   end
 end
 
-function timestring(time)
-  return string.format("%1.1f%s", time / wt, re_symbols[4])
+function timestring(time, compact)
+  if compact then
+    return string.format("%d%s", math.floor(time / wt), re_symbols[4])
+  else
+    return string.format("%1.1f%s", time / wt, re_symbols[4])
+  end
 end
 
-function coststring(cost, extratime)
+function coststring(cost, extratime, compact)
   extratime = extratime or 0
   str = ""
   for i = 1,3 do
     co = cost[i] or 0
     if co > 0 then
-      if string.len(str) > 0 then
+      if compact then
+        str = str .. " "
+      else
         str = str .. ", "
       end
       str = string.format("%s%d%s", str, co, re_symbols[i])
@@ -546,9 +555,13 @@ function coststring(cost, extratime)
   time = (cost[4] or 0) + extratime
   if time > 0 then
     if string.len(str) > 0 then
-      str = str .. ", "
+      if compact then
+        str = str .. " "
+      else
+        str = str .. ", "
+      end
     end
-    str = str .. timestring(time)
+    str = str .. timestring(time, compact)
   end
   return str
 end
@@ -822,15 +835,15 @@ function isvaliddykepos(x,y)
 end
 
 --Prints text where x is the center of text.
-function printc(s,x,y,c)
+function printc(s,x,y,c,fixed,scale,small)
   local w=print(s,0,-8,c or 15,true)
-  prints(s,x-(w/2//6*6),y,c or 15)
+  prints(s,x-(w/2//6*6),y,c or 15,fixed,scale,small)
 end
 
 --Prints text, replaces some symbols with sprites
-function prints(s,x,y,c)
-  
-  print(s:gsub("%$"," "):gsub("/"," "):gsub("#"," "):gsub("%*"," "),x,y+1,c or 15, true)
+function prints(s,x,y,c,fixed,scale,small)
+  scale = scale or 1
+  print(s:gsub("%$"," "):gsub("/"," "):gsub("#"," "):gsub("%*"," "),x,y+1,c or 15, true,scale,small)
   for i = 1, s:len() do
     ch = s:sub(i,i)
     sp = 0
@@ -851,6 +864,74 @@ function prints(s,x,y,c)
     end
     spr(sp,x+(i-1)*6,y,0)
   end
+end
+
+function myspr(sp, x, y)
+  spr(sp, x*8, y*8, 0)
+end
+
+function myrspr(spa, spb, x, y, pa, r)
+  sp = eitheror(spa, spb, pa, r * 13 + x * 19 + y * -5)
+  spr(sp, x*8, y*8, 0)
+end
+
+function eitheror(a,b,pa,r)
+  r = (r * 17 + a * 23 + b * -7) * 111 + (r * 11 + a * -3 + b * 29) * 97
+  if math.abs(r) % 100 > pa * 100 then
+    return b
+  else
+    return a
+  end
+end
+
+function mysplit (inputstr, sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t={}
+  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+    table.insert(t, str)
+  end
+  return t
+end
+
+function drawcard(x,y,w,h,title,text,cost,r)
+  myspr(204, x,y)
+  myspr(207, x+w-1,y)
+  myspr(252, x,y+h-1)
+  myspr(255, x+w-1,y+h-1)
+  stains = {222, 237, 238}
+  for xx = x+1, x+w-2 do
+    for yy = y+1, y+h-2 do
+      stain = stains[math.abs(r*2+x*19+y*17)%3+1]
+      myrspr(stain, 221, xx,yy, 0.03, r)
+    end
+    myrspr(205, 206, xx,y, 0.1, r)
+    myrspr(253, 254, xx,y + h - 1, 0.25, r)
+  end
+  for yy = y+1, y+h-2 do
+    myrspr(220, 236, x,yy, 0.1, r)
+    myrspr(223, 239, x + w - 1,yy, 0.25, r)
+  end
+  myspr(216, x+1,y+2)
+  for xx = x+2, x+w-3 do
+    myspr(217, xx,y+2)
+  end
+  myspr(218, x+w-2,y+2)
+  printc(title, x*8+w*4, y*8 + 6, 15)
+  words = mysplit(text)
+  tex = x*8+6
+  tey = (y+3)*8+6
+  for _,word in pairs(words) do
+    tw = print(word, 0, -10, 15, false, 1, true)
+    if tex + tw > x*8 + w*8 - 6 then
+      tex = x*8+6
+      tey = tey + 6
+    end
+    prints(word, tex, tey, 15, false, 1, true)
+    tex = tex + tw + 6
+  end
+  prints(coststring(cost, 0, true), x*8-3, (y+h)*8-11)
 end
 
 start()
@@ -966,10 +1047,29 @@ start()
 -- 162:0000000000022000002002000222222002222220022222200022220000000000
 -- 163:0000000000002000000222000022222202220220022002000200000000000000
 -- 164:0000000002220000022200000222220002222200000222000002220000000000
+-- 204:000000000000cccc000cdddd00cddddd0cdddddd0cdddddd0cdddddd0cdddddd
+-- 205:00000000cccc00ccddddecccdddcdddddddddddddceddddddddddddddddddddd
+-- 206:00000000ccccccccdddddddddddddddddddddddddddddddddddddddddddddddd
+-- 207:00000000cccc0000ddddd000dddddd00dddddde0dddddde0dddddde0dddddde0
+-- 216:ddddddddddddddddddeedddddeddddefdfdddfffdeddffedddefeddddddddddd
+-- 217:ddddddddddddddddddddddddffffffffffffffffdddddddddddddddddddddddd
+-- 218:ddddddddddddddddddddeeddfeddddedfffdddfddeffddeddddefedddddddddd
+-- 220:0cdddddd0cdddddd0cdddddd00eddddd00cddddd0cdddddd0cdddddd0cdddddd
+-- 221:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+-- 222:ddddddddddddddddddddddddddddddddddddddedddddeecddddddcdddddddddd
+-- 223:dddddde0dddddde0dddddde0ddddde00ddddde00dddddee0dddddd00dddddde0
 -- 224:00000000000000000000000000000000000c000000c0c00c00c00c0c0c0000c0
 -- 225:000000000cc00000c00c0000c000c000c0000c0000000c0000000c00000000c0
+-- 236:0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd
+-- 237:dddddddddddddddddddddddddddddddddddeddddddddcddddddddddddddddddd
+-- 238:dddddddddddddddddcdddddddddddddddddddddddddddddddddddddddddddddd
+-- 239:dddddde0dddddde0dddddde0dddddde0dddddde0dddddde0dddddde0dddddde0
 -- 240:0c0000000c0000000c0000000c0000000c0000000c000000c0000000c0000000
 -- 241:000000c0000000c0000000c0000000c0000000c0000000c00000000c0000000c
+-- 252:0cdddddd0cdddddd0cdddddd0cdddddd00dddddd000ddddd0000eeee00000000
+-- 253:ddddddddddddddddddddddddddddddddddddddddddddeeeeeeee00ee00000000
+-- 254:ddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeee00000000
+-- 255:dddddde0dddddde0dddddde0dddddde0ddddde00dddde000eeee000000000000
 -- </TILES>
 
 -- <MAP>
