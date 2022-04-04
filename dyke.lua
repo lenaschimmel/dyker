@@ -1,7 +1,7 @@
 --
 -- title:  dyke march
 -- author: lena schimmel
--- desc:   a game for ld50
+-- desc:   a game for ld50 
 -- script: lua
 t=0 --global time
 px=12 -- player x (y is not saved, but computed)
@@ -21,10 +21,13 @@ re = {0, 0, 0} -- ressources (stone, wood, score)
 wt = 100 -- water tics
 pt = 10 -- player tics
 tm = 100 -- target money = win condition
+ttw = 0
 
 levelindex = 1
 selectedcard = 0
 buildingcard = nil
+buildingtype = nil
+clicklock = false
 
 function start() 
   loadlevel(1)
@@ -62,7 +65,7 @@ levels = {
 }
 
 objecttypes = {
-  {
+  dyke={
     name="dyke",
     cost={1,0,0,60},
     desc="stops water and you can walk on it",
@@ -73,7 +76,7 @@ objecttypes = {
     spoutline=70,
     spoutlinered=86,
   },
-  {
+  rock={
     name="rock",
     cost={0,0,0,0},
     desc="you can harvest stones from it",
@@ -99,7 +102,7 @@ objecttypes = {
       end
     end 
   },
-  {
+  tree={
     name="tree",
     cost={0,0,0,0},
     desc="you can collect apples from it, or cut it for wood.",
@@ -191,10 +194,24 @@ objecttypes = {
       end
     end 
   },
+  well={
+    name="well",
+    cost={5,0,0,300},
+    desc="your plants get their fruit quicker",
+    sx=1,
+    sy=2,
+    sprites={151,150,149,149,149},
+    isblock=false,
+    spoutline=151,
+    spoutlinered=152,
+  }
+  
 }
+
 
 objects = {}
 cards = {}
+permanents = {}
 
 function canwait() 
   for _,o in pairs(objects) do
@@ -293,15 +310,16 @@ function loadlevel(i)
   sx=0 
 
   objects = {}
+  permanents = {}
 
   for x=0,levelwidth do
     for y=0,levelheight do
       type = nil
       if lmget(x,y) == 224 then
-        type = objecttypes[2]
+        type = objecttypes['rock']
       end
       if lmget(x,y) == 75 then
-        type = objecttypes[3]
+        type = objecttypes['tree']
       end
       if type then
         o = createobject(type,x,y)
@@ -314,6 +332,9 @@ function OVR()
   map(levelx,levely,levelwidth,levelheight,-sx,0,0)
 
   x,y,l = mouse()
+  if not l then
+    clicklock = false
+  end
   my = y // 8
 
   -- show resources
@@ -349,23 +370,27 @@ function OVR()
         ct = "Play the card '" .. card.title .. "'"
         paintcardonlybutton(ci, 5)
         if l then
-          pay(card.cost)
+          if not card.buildingtype then
+            pay(card.cost) -- buildings are paid later
+          end
           selectedcard = 0
           trace("Remove card " .. ci)
           table.remove(handcards, ci)
-          if card.action then
-            card.action()
+          if card.effect then
+            card.effect()
           elseif card.gain then
             gain(card.gain)
           end
 
           if card.ispermanent then
-            table.insert(permanteds, card)
+            table.insert(permanents, card)
           end
 
           if card.buildingtype then
             buildingcard = card
-
+            buildingtype = card.buildingtype
+            clicklock = true
+            to = 2
           end
         end
       end
@@ -408,12 +433,43 @@ function OVR()
         end
       end
 
+
       if to == 2 then -- build
-        ty = objecttypes[1]
+        ty = buildingtype or objecttypes['dyke']
+
+        wantscancel = false
+        if ty == objecttypes['dyke'] then
+          validpos = isvaliddykepos(mx,my)
+        else
+          printc("Place " .. ty.name, 110, 8*3)
+          printc("Click here to cancel", 110, 8*4)
+          if my >= 3 and my <= 4 then
+            wantscancel = true
+          end
+          validpos = true
+          for xx = 1, ty.sx do
+            for yy = 1, ty.sy do
+              if not isbuildable(xx+mx-1, yy+my-1) then
+                validpos = false
+              end
+            end
+            if not isblock(xx+mx-1, my+ty.sy) then
+              validpos = false
+            end
+          end
+        end
         mis = canpay(ty.cost)
-        if mis > 0 then
+        if wantscancel then
+          ct = "That card will go back to your hand"
+          if l then
+            buildingtype = nil
+            table.insert(handcards, buildingcard)
+            buildingcard = nil
+            to = 0
+          end
+        elseif mis > 0 then
           ct = "Not enough " .. re_symbols[mis] .. " to build " .. ty.name
-        elseif not isvaliddykepos(mx,my) then
+        elseif not validpos then
           ct = "Cant build " .. ty.name .. " here"
           sp = ty.spoutlinered -- no real cursor, we draw the building outline
         else
@@ -423,7 +479,9 @@ function OVR()
           ptx = workpoint(left, right)
           if isreachable(ptx, my) then
             ct = "Build " .. ty.name .. " here: " .. coststring(ty.cost, walktimetox(ptx))
-            if l then
+            if l and not clicklock then
+              buildingtype = nil
+              buildingcard = nil
               tx = ptx
               bx = mx
               by = my
@@ -518,6 +576,13 @@ function OVR()
             end
             
             if l then
+              -- return the card if the player currently builds a card building
+              if to == 2 and i ~= 2 and buildingcard then
+                buildingtype = nil
+                table.insert(handcards, buildingcard)
+                buildingcard = nil
+              end
+
               if (i ~= 5 or canwait()) and (i ~= 6 or #handcards > 0) then
                 to = i
               end
@@ -659,7 +724,9 @@ function TIC()
     end
 
     if px ~= tx then -- still walking
-      if t % pt == 0 then
+      ttw = ttw - 1
+      if ttw <= 0 then
+        ttw = pt
         if px < tx then
           px = px + 1
             pf = 1
@@ -1030,23 +1097,31 @@ function definecards()
       title="Woodseller",
       text="When you cut a tree for #, you get 10$ extra.",
       cost = {0,0,5,120},
+      ispermanent = true,
       r=234,
     },
     {
       title="Boots",
       text="With these boots, you can walk 20% faster.",
       cost = {0,1,0,0},
+      ispermanent = true,
+      effect = function()
+        pt = pt * 0.8
+      end,
       r=235,
     },
     {
       title="Well",
       text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
-      cost = {5,0,0,300},
       r=236,
+      buildingtype=objecttypes["well"]
     }
   }
   for i, card in pairs(cards) do
     card.y = 14
+    if card.buildingtype then
+      card.cost = card.buildingtype.cost
+    end
   end
   handcards = {}
   for i = 1,5 do
@@ -1070,20 +1145,24 @@ function movecards()
   end
 end
 
-function paintcards(mx,my) 
+function paintcards(mx,my)
   ci, button = 0, false
-  -- effective width: 30 - 9 - 2 = 19
-  wpc = 19 // (#handcards - 1)
-  for i, card in pairs(handcards) do
-    cx = 1 + (i-1) * wpc
-    paintcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
-    if mx >= cx and mx <= cx + 9 and my >= card.y and my <= card.y + 13 then
-      ci = i
-      if mx >= cx + 1 and mx < cx + 9 - 1 and my >= card.y + 13 - 2 and my < card.y + 13 - 1 then
-        button = true
+
+  if #handcards then
+    -- effective width: 30 - 9 - 2 = 19
+    wpc = 19 // (#handcards - 1)
+    for i, card in pairs(handcards) do
+      cx = 1 + (i-1) * wpc
+      paintcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
+      if mx >= cx and mx <= cx + 9 and my >= card.y and my <= card.y + 13 then
+        ci = i
+        if mx >= cx + 1 and mx < cx + 9 - 1 and my >= card.y + 13 - 2 and my < card.y + 13 - 1 then
+          button = true
+        end
       end
     end
   end
+  
   return ci, button
 end
 
@@ -1175,6 +1254,7 @@ start()
 -- 114:00cc11000c111110c11cc111c113131111c13113111311130111113000113300
 -- 115:00c4c0000cd4dd00cdd4dde0cdd44de0cddddde00dddde0000eee00000000000
 -- 116:ccc00000cdd00000cdccc000cdcdd00000cdccc000cdcdd00000cdd00000cdd0
+-- 117:00000000000010003331333330010103300101033001000330d1dd033de1eed3
 -- 119:000000000000000000000000000000000000ccc00000cc000000c0c00000000c
 -- 120:cc0000ccc000000c00000000000000000000000000000000c000000ccc0000cc
 -- 121:000000cc00000cc00000000000cc0cc00cc0cc000000000000cc00000cc00000
@@ -1186,6 +1266,7 @@ start()
 -- 130:00cc00000c111000c1c11300c113130001113000003300000000000000000000
 -- 131:00cc00000c4dd000cd4ddf00cd44df000dddf00000ff00000000000000000000
 -- 132:0ddd00000dee00000deddd000dedee00000dee00000dee000000000000000000
+-- 133:3ef1ffe3df4144fded4144deffddddefefeeeffefeffffff0fefeef000ffff00
 -- 135:0000000000000000000000000000000000002220000022000000202000000002
 -- 136:2200002220000002000000000000000000000000000000002000000222000022
 -- 137:0000002200000220000000000022022002202200000000000022000002200000
@@ -1195,11 +1276,19 @@ start()
 -- 146:00000000000cc00000c00c000cccccc00cccccc00cccccc000cccc0000000000
 -- 147:000000000000c000000ccc0000cccccc0ccc0cc00cc00c000c00000000000000
 -- 148:000000000ccc00000ccc00000ccccc000ccccc00000ccc00000ccc0000000000
+-- 149:00000000000010003331333330010103300101033001000330d1dd033de1eed3
+-- 150:00000000000000003000000030000000300000003000000030dd00003dee0000
+-- 151:0000000000000000ccccccccc000000cc000000cc000000cc0cccc0ccc0000cc
+-- 152:0000000000000000222222222000000220000002200000022022220222000022
 -- 160:0000002200000220000000000022022002202200000000000022000002200000
 -- 161:0000000002222220022222200222222000022000000220000002200000000000
 -- 162:0000000000022000002002000222222002222220022222200022220000000000
 -- 163:0000000000002000000222000022222202220220022002000200000000000000
 -- 164:0000000002220000022200000222220002222200000222000002220000000000
+-- 165:3ef1ffe3df4144fded4144deffddddefefeeeffefeffffff0fefeef000ffff00
+-- 166:3eff0000dfffff00edffff00ffdddd0fefeeeffefeffffff0fefeef000ffff00
+-- 167:c000000cc000000ccc0000ccc0cccc0cc000000cc000000c0c0000c000cccc00
+-- 168:2000000220000002220000222022220220000002200000020200002000222200
 -- 204:000000000000cccc000cdddd00cddddd0cdddddd0cdddddd0cdddddd0cdddddd
 -- 205:00000000cccc00ccddddecccdddcdddddddddddddceddddddddddddddddddddd
 -- 206:00000000ccccccccdddddddddddddddddddddddddddddddddddddddddddddddd
