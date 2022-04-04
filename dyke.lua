@@ -39,7 +39,7 @@ end
 
 re_names={"stone", "wood", "coins", "time"}
 re_symbols={"#", "/", "$", "*"}
-to_names={"walk", "build dyke", "collect", "cut", "play card", "wait"}
+to_names={"walk", "build dyke", "collect", "cut", "wait", "play card"}
 
 levels = {
   {
@@ -284,7 +284,7 @@ function loadlevel(i)
   bx=0 -- build target x
   by=0 -- build target y
   tb=nil -- to build (nil or object)
-  to=1 -- tool (1=walk, 2=build, 3=collect, 4=cut, 5=card)
+  to=1 -- tool (1=walk, 2=build, 3=collect, 4=cut, 5=wait, 6=card)
   wo = false -- working, time passing, accept no input during this
   tl = 0
 
@@ -327,12 +327,13 @@ function OVR()
       spr(104, 132 + 12*i, 8, 0)
     end
   end
+  prints(""..#cards, 212, 8, 14)
 
   ct = "" --center text
   -- draw cursor, handle potential actions
   local sp = 119
 
-  if to==5 then
+  if to==6 then
     sp = 119
     ci, bu = drawcards(x/8, y/8)
     if bu then
@@ -363,7 +364,7 @@ function OVR()
     if wo then
       sp = 102
     else
-      if to ~= 5 then
+      if to ~= 6 then
       sp = 159 + to -- disabled
       end
       if to == 1 then -- walk
@@ -483,17 +484,25 @@ function OVR()
           if mxc == 22 + 2*i then
             sp = 120
             ct = to_names[i]
-            if i == 6 then -- wait
+            if i == 5 then -- wait
               if not canwait() then
                 ct = "Nothing to wait for"
                 sp = 136
               end
             end
+
+            if i == 6 then -- card
+              if #cards == 0 then
+                ct = "No cards"
+                sp = 136
+              end
+            end
+            
             if l then
-              if i ~= 6 or canwait() then
+              if (i ~= 5 or canwait()) and (i ~= 6 or #cards > 0) then
                 to = i
               end
-              if to == 6 and canwait() then
+              if to == 5 and canwait() then
                 wo = true
               end
             end
@@ -507,7 +516,7 @@ function OVR()
 end
 
 function stopwait()
-  if to == 6 then
+  if to == 5 then
     to = 0
     wo = false
   end
@@ -988,6 +997,7 @@ function drawcardbutton(x,y,c)
 end
 
 function definecards()
+  
   cards = {
     {
       title="Woodseller",
@@ -1017,6 +1027,7 @@ function definecards()
   for i, card in pairs(cards) do
     card.y = 14
   end
+  cards = {}
 end
 
 function movecards()
@@ -1127,8 +1138,8 @@ start()
 -- 097:000000000ddddde00deeeef00efffff000034000000340000003400000000000
 -- 098:0000000000033000003003000333334003333440034343400034340000000000
 -- 099:000000000000d000000dee000033eeef03340ef003400f000400000000000000
--- 100:000000000ccc00000cdd00000cdccc000cdcdd00000cdd00000cdd0000000000
--- 101:00000000000cc00000c4dd000cd4ddf00cd44df000dddf00000ff00000000000
+-- 100:00000000000cc00000c4dd000cd4ddf00cd44df000dddf00000ff00000000000
+-- 101:000000000ddd00000dee00000deddd000dedee00000dee00000dee0000000000
 -- 102:00ccc0000c0c0c00c00c00c0c00cc0c0c00000c00c000c0000ccc00000000000
 -- 104:ccccccccc000000cc000000cc000000cc000000cc000000cc000000ccccccccc
 -- 107:0000002200002200000200000020000000200000020000000200000002000000
@@ -1148,7 +1159,7 @@ start()
 -- 129:0003300000334400033444003333400033330000033000000000000000000000
 -- 130:00cc00000c111000c1c11300c113130001113000003300000000000000000000
 -- 131:00cc00000c4dd000cd4ddf00cd44df000dddf00000ff00000000000000000000
--- 132:0ccc00000cdd00000cdccc000cdcdd00000cdd00000cdd000000000000000000
+-- 132:0ddd00000dee00000deddd000dedee00000dee00000dee000000000000000000
 -- 135:0000000000000000000000000000000000002220000022000000202000000002
 -- 136:2200002220000002000000000000000000000000000000002000000222000022
 -- 137:0000002200000220000000000022022002202200000000000022000002200000
