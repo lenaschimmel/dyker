@@ -104,12 +104,14 @@ objecttypes = {
   },
   tree={
     name="tree",
-    cost={0,0,0,0},
+    cost={0,0,0,180},
     desc="you can collect apples from it, or cut it for wood.",
     sx=2,
     sy=2,
     sprites={75,39,11,41,45},
     isblock=false,
+    spoutline=75,
+    spoutlinered=107,
     cut = {
       verb = "cut",
       re = 0,
@@ -364,11 +366,11 @@ function OVR()
       if mis > 0 then
         sp = 164
         ct = "Not enough " .. re_symbols[mis] .. " to play '" .. card.title .. "'"
-        paintcardonlybutton(ci, 2)
+        paintcards(0,0,true,2)
       else
         sp = 148
         ct = "Play the card '" .. card.title .. "'"
-        paintcardonlybutton(ci, 5)
+        paintcards(0,0,true,5)
         if l then
           if not card.buildingtype then
             pay(card.cost) -- buildings are paid later
@@ -667,10 +669,12 @@ function coststring(cost, extratime, compact)
   for i = 1,3 do
     co = cost[i] or 0
     if co > 0 then
-      if compact then
-        str = str .. " "
-      else
-        str = str .. ", "
+      if string.len(str) > 0 then
+        if compact then
+          str = str .. " "
+        else
+          str = str .. ", "
+        end
       end
       str = string.format("%s%d%s", str, co, re_symbols[i])
     end
@@ -747,7 +751,9 @@ function TIC()
         elseif tb.state == 2 then -- building -> finished
           tl = tl - 1
           if tl <= 0 then
-            tb.state = 3
+            if tb.type.name ~= "tree" then
+              tb.state = 3
+            end
             if tb.type.isblock then
               lmset(tb.x,tb.y,3)
             end
@@ -1030,45 +1036,36 @@ function mysplit (inputstr, sep)
   return t
 end
 
-function paintcardonlybutton(i, c)
-  ci, button = 0, false
-  -- effective width: 30 - 9 - 2 = 19
-  wpc = 19 // (#handcards - 1)
-  card = handcards[i]
-
-  cx = 1 + (i-1) * wpc
-  
-  paintcardbutton(cx*8+9*4, (card.y+13-1)*8 - 6,c)
-end
-
-function paintcard(x,y,w,h,title,text,cost,r)
-  myspr(204, x,y)
-  myspr(207, x+w-1,y)
-  myspr(252, x,y+h-1)
-  myspr(255, x+w-1,y+h-1)
-  stains = {222, 237, 238}
-  for xx = x+1, x+w-2 do
-    for yy = y+1, y+h-2 do
-      stain = stains[math.abs(r*2+x*19+y*17)%3+1]
-      myrspr(stain, 221, xx,yy, 0.03, r)
+function paintcard(x,y,w,h,title,text,cost,r,onlybutton, buttoncolor)
+  if not onlybutton then
+    myspr(204, x,y)
+    myspr(207, x+w-1,y)
+    myspr(252, x,y+h-1)
+    myspr(255, x+w-1,y+h-1)
+    stains = {222, 237, 238}
+    for xx = x+1, x+w-2 do
+      for yy = y+1, y+h-2 do
+        stain = stains[math.abs(r*2+x*19+y*17)%3+1]
+        myrspr(stain, 221, xx,yy, 0.03, r)
+      end
+      myrspr(205, 206, xx,y, 0.1, r)
+      myrspr(253, 254, xx,y + h - 1, 0.25, r)
     end
-    myrspr(205, 206, xx,y, 0.1, r)
-    myrspr(253, 254, xx,y + h - 1, 0.25, r)
+    for yy = y+1, y+h-2 do
+      myrspr(220, 236, x,yy, 0.1, r)
+      myrspr(223, 239, x + w - 1,yy, 0.25, r)
+    end
+    myspr(216, x+1,y+3)
+    for xx = x+2, x+w-3 do
+      myspr(217, xx,y+3)
+    end
+    myspr(218, x+w-2,y+3)
+    print(title, x*8+6, y*8 + 6, 15)
+    prints(coststring(cost, 0, true), x*8+6, (y+2)*8)
   end
-  for yy = y+1, y+h-2 do
-    myrspr(220, 236, x,yy, 0.1, r)
-    myrspr(223, 239, x + w - 1,yy, 0.25, r)
-  end
-  myspr(216, x+1,y+3)
-  for xx = x+2, x+w-3 do
-    myspr(217, xx,y+3)
-  end
-  myspr(218, x+w-2,y+3)
-  print(title, x*8+6, y*8 + 6, 15)
-  prints(coststring(cost, 0, true), x*8, (y+2)*8)
-  paintcardbutton(x*8+w*4, (y+h-1)*8 - 6, 9)
+  paintcardbutton(x*8+w*4, (y+h-1)*8 - 6, buttoncolor or 9)
 
-  if y > 13 then
+  if y > 13 or onlybutton then
     return
   end
   
@@ -1123,6 +1120,12 @@ function definecards()
       text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
       r=236,
       buildingtype=objecttypes["well"]
+    },
+    {
+      title="Appleseed",
+      text="You may plant an apple tree.",
+      r=237,
+      buildingtype=objecttypes["tree"]
     }
   }
   for i, card in pairs(cards) do
@@ -1153,15 +1156,19 @@ function movecards()
   end
 end
 
-function paintcards(mx,my)
+function paintcards(mx,my,onlybutton, buttoncolor)
   ci, button = 0, false
 
-  if #handcards then
+  if #handcards > 0 then
     -- effective width: 30 - 9 - 2 = 19
-    wpc = 19 // (#handcards - 1)
+    if #handcards > 1 then
+      wpc = 19 // (#handcards - 1)
+    else
+      wpc = 0
+    end
     for i, card in pairs(handcards) do
       cx = 1 + (i-1) * wpc
-      paintcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
+      paintcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r, onlybutton, buttoncolor)
       if mx >= cx and mx <= cx + 9 and my >= card.y and my <= card.y + 13 then
         ci = i
         if mx >= cx + 1 and mx < cx + 9 - 1 and my >= card.y + 13 - 2 and my < card.y + 13 - 1 then
