@@ -23,6 +23,7 @@ pt = 10 -- player tics
 tm = 100 -- target money = win condition
 
 levelindex = 1
+selectedcard = 0
 
 function start() 
   loadlevel(1)
@@ -192,6 +193,7 @@ objecttypes = {
 }
 
 objects = {}
+cards = {}
 
 function canwait() 
   for _,o in pairs(objects) do
@@ -267,6 +269,7 @@ function dump(o)
 end
 
 function loadlevel(i)
+  definecards()
   levelwidth = levels[i].w
   levelheight = 17
   levelx = levels[i].x
@@ -325,17 +328,44 @@ function OVR()
     end
   end
 
-  cost = {0,0,5,4}
-  drawcard(2,2,9,13,"Woodseller", "When you cut a tree for #, you get 10$ extra.", cost, 234)
-
   ct = "" --center text
   -- draw cursor, handle potential actions
-  sp = 119
+  local sp = 119
+
+  if to==5 then
+    sp = 119
+    ci, bu = drawcards(x/8, y/8)
+    if bu then
+      mis = canpay(cards[ci].cost)
+      if mis > 0 then
+        sp = 164
+        ct = "Not enough " .. re_symbols[mis] .. " to play '" .. cards[ci].title .. "'"
+        drawcardonlybutton(ci, 2)
+      else
+        sp = 148
+        ct = "Play the card '" .. cards[ci].title .. "'"
+        drawcardonlybutton(ci, 5)
+        if l then
+          -- TODO actually play it
+        end
+      end
+    elseif ci > 0 and selectedcard ~= ci then
+      ct = "Look at card '" .. cards[ci].title .. "'"
+    elseif ci == 0 and selectedcard > 0 then
+      ct = "Move card out of the way"
+    end
+    if l then
+      selectedcard = ci
+    end
+  end
+
   if my > 2 then -- lower screen part
     if wo then
       sp = 102
     else
+      if to ~= 5 then
       sp = 159 + to -- disabled
+      end
       if to == 1 then -- walk
         ly = yabovefloor(mx)
         if iswalkable(mx,my) then
@@ -586,6 +616,8 @@ function TIC()
   sx = sx + sxv * 2
   sx = math.max(sx, 0)
   sx = math.min(sx, (levelwidth * 8) - 240)
+
+  movecards()
 
   -- update
   if wo then
@@ -895,6 +927,17 @@ function mysplit (inputstr, sep)
   return t
 end
 
+function drawcardonlybutton(i, c)
+  ci, button = 0, false
+  -- effective width: 30 - 9 - 2 = 19
+  wpc = 19 // (#cards - 1)
+  card = cards[i]
+
+  cx = 1 + (i-1) * wpc
+  
+  drawcardbutton(cx*8+9*4, (card.y+13-1)*8 - 6,c)
+end
+
 function drawcard(x,y,w,h,title,text,cost,r)
   myspr(204, x,y)
   myspr(207, x+w-1,y)
@@ -913,15 +956,22 @@ function drawcard(x,y,w,h,title,text,cost,r)
     myrspr(220, 236, x,yy, 0.1, r)
     myrspr(223, 239, x + w - 1,yy, 0.25, r)
   end
-  myspr(216, x+1,y+2)
+  myspr(216, x+1,y+3)
   for xx = x+2, x+w-3 do
-    myspr(217, xx,y+2)
+    myspr(217, xx,y+3)
   end
-  myspr(218, x+w-2,y+2)
-  printc(title, x*8+w*4, y*8 + 6, 15)
+  myspr(218, x+w-2,y+3)
+  print(title, x*8+6, y*8 + 6, 15)
+  prints(coststring(cost, 0, true), x*8, (y+2)*8)
+  drawcardbutton(x*8+w*4, (y+h-1)*8 - 6, 9)
+
+  if y > 13 then
+    return
+  end
+  
   words = mysplit(text)
   tex = x*8+6
-  tey = (y+3)*8+6
+  tey = (y+4)*8+6
   for _,word in pairs(words) do
     tw = print(word, 0, -10, 15, false, 1, true)
     if tex + tw > x*8 + w*8 - 6 then
@@ -931,7 +981,73 @@ function drawcard(x,y,w,h,title,text,cost,r)
     prints(word, tex, tey, 15, false, 1, true)
     tex = tex + tw + 6
   end
-  prints(coststring(cost, 0, true), x*8-3, (y+h)*8-11)
+end
+
+function drawcardbutton(x,y,c)
+  printc("PLAY CARD", x, y, c)
+end
+
+function definecards()
+  cards = {
+    {
+      title="Woodseller",
+      text="When you cut a tree for #, you get 10$ extra.",
+      cost = {0,0,5,120},
+      r=234,
+    },
+    {
+      title="Boots",
+      text="With these boots, you can walk 20% faster.",
+      cost = {0,1,0,0},
+      r=235,
+    },
+    {
+      title="Well",
+      text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
+      cost = {5,0,0,300},
+      r=236,
+    },    
+    {
+      title="Well",
+      text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
+      cost = {5,0,0,300},
+      r=236,
+    },
+  }
+  for i, card in pairs(cards) do
+    card.y = 14
+  end
+end
+
+function movecards()
+  for i, card in pairs(cards) do
+    if i == selectedcard then
+      if card.y > 2 then
+        card.y = card.y - 1
+      end
+    else
+      if card.y < 14 then
+        card.y = card.y + 1
+      end
+    end
+  end
+end
+
+function drawcards(mx,my) 
+  ci, button = 0, false
+  -- effective width: 30 - 9 - 2 = 19
+  wpc = 19 // (#cards - 1)
+  for i, card in pairs(cards) do
+    cx = 1 + (i-1) * wpc
+    drawcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
+    if mx >= cx and mx <= cx + 9 and my >= card.y and my <= card.y + 13 then
+      ci = i
+      if mx >= cx + 1 and mx < cx + 9 - 1 and my >= card.y + 13 - 2 and my < card.y + 13 - 1 then
+        button = true
+      end
+    end
+  end
+  return ci, button
 end
 
 start()
