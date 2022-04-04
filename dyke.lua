@@ -66,7 +66,7 @@ objecttypes = {
     desc="stops water and you can walk on it",
     sx=1,
     sy=1,
-    sprites={70,38,54,54},
+    sprites={70,38,54,54,54},
     isblock=true,
     spoutline=70,
     spoutlinered=86,
@@ -77,7 +77,7 @@ objecttypes = {
     desc="you can harvest stones from it",
     sx=2,
     sy=2,
-    sprites={48,48,48,48},
+    sprites={48,48,48,48,48},
     isblock=false,
     cut = {
       verb = "break",
@@ -103,7 +103,7 @@ objecttypes = {
     desc="you can collect apples from it, or cut it for wood.",
     sx=2,
     sy=2,
-    sprites={75,39,11,41},
+    sprites={75,39,11,41,45},
     isblock=false,
     cut = {
       verb = "cut",
@@ -142,6 +142,18 @@ objecttypes = {
             stopwait()
           end
           o.collect.re = math.min(4,o.collect.re+1)
+        end
+      end
+
+      if o.state ~= 5 then
+        for xx = o.x, o.x+o.type.sx-1 do
+          for yy = o.y, o.y+o.type.sy-1 do
+            if iswater(xx,yy) then
+              o.state = 5
+              o.collect.re = 0
+              o.cut.re = 0
+            end
+          end
         end
       end
     end,
