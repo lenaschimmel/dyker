@@ -371,7 +371,7 @@ function OVR()
         sp = 148
         ct = "Play the card '" .. card.title .. "'"
         paintcards(0,0,true,5)
-        if l then
+        if l and not clicklock then
           if not card.buildingtype then
             pay(card.cost) -- buildings are paid later
           end
@@ -403,6 +403,7 @@ function OVR()
     end
     if l then
       selectedcard = ci
+      clicklock = true
     end
   end
 
@@ -1099,11 +1100,15 @@ function definecards()
   
   cards = {
     {
-      title="Woodseller",
-      text="When you cut a tree for #, you get 10$ extra.",
-      cost = {0,0,5,120},
-      ispermanent = true,
+      title="Library",
+      text="Draw 3 cards.",
+      cost = {0,0,25,0},
       r=234,
+      effect = function()
+        for i=1,3 do
+          drawrandomcard()
+        end
+      end,
     },
     {
       title="Boots",
@@ -1136,10 +1141,14 @@ function definecards()
   end
   handcards = {}
   for i = 1,5 do
-    ind = math.random(1, #cards)
-    trace("Add card " .. ind .. " to hand")
-    table.insert(handcards, table.shallow_copy(cards[ind]))
+    drawrandomcard()
   end
+end
+
+function drawrandomcard()
+  ind = math.random(1, #cards)
+  trace("Add card " .. ind .. " to hand")
+  table.insert(handcards, table.shallow_copy(cards[ind]))
 end
 
 function movecards()
