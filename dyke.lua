@@ -150,7 +150,7 @@ objecttypes = {
         end
       end
 
-      if o.state ~= 5 then
+      if o.state < 4 then
         for xx = o.x, o.x+o.type.sx-1 do
           for yy = o.y, o.y+o.type.sy-1 do
             if iswater(xx,yy) then
@@ -906,6 +906,14 @@ function setwater(x,y)
   if iswater(x,y+1) then
     lmset(x, y+1+levelheight, 2)
   end
+
+  if x >= px then
+   px = x + 1
+   py = yabovefloor(px)
+  end  
+  if x >= tx then
+    tx = x + 1
+  end  
 end
 
 -- tile flags:
@@ -1162,7 +1170,7 @@ function paintcards(mx,my)
       end
     end
   end
-  
+
   return ci, button
 end
 
