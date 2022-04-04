@@ -46,7 +46,7 @@ function lmset(x,y,t)
   mset(x+levelx, y+levely, t)
 end
 
-globalstate = "play" -- title, levelstart, play, levelend, gamewon
+globalstate = "levelstart" -- title, levelstart, play, levelend, gamewon
 
 re_names={"stone", "wood", "coins", "time", "cards"}
 re_symbols={"#", "/", "$", "*", "@"}
@@ -55,27 +55,33 @@ to_names={"walk", "build dyke", "collect", "cut", "wait", "play card"}
 levels = {
   {
     name = "Introduction",
+    introtext = "Welcome to the island! Have a nice time, make yourself at home... but not too much. There's a flood wave coming, see if you can earn 70$  for a ticket to flee!",
+    outrotext = "Well, that wasn't too hard, right? Let's try another island.",
     x = 30,
     y = 34,
     w = 30,
     m = 70,
-    re = {15, 30, 30}
+    re = {15, 30, 30, 0}
   },
   {
     name = "Level two",
+    introtext = "Look, there's a lot more space here. Space to plant trees or even heard some sheep. And more space for the flood wave, of course. This time, you need 100$  to get away from here.",
+    outrotext = "Time for a new challenge, right?",
     x = 0,
     y = 0,
     w = 60,
     m = 100,
-    re = {5, 5, 5}
+    re = {5, 5, 5, 3}
   },
   {
     name = "Level three",
+    introtext = "You made it! Your own little house, on a beautiful island, packed with books. If you aint got nothing else to do, you can study them to find more cards @ ! Let's hope those books don't get wet...",
+    outrotext = "Didn't have much look with those books, right? But don't be disgruntled - you survided, and so has the knowlege inside your head!",
     x = 87,
     y = 0,
     w = 53,
     m = 130,
-    re = {10, 10, 10}
+    re = {10, 10, 10, 5}
   },
 }
 
@@ -619,7 +625,7 @@ function OVR()
               end
               sp = sp - 16 -- enable
               ct = "Walk here: " .. timestring(walktimetox(mx))
-              if l then
+              if l and not clicklock then
                 tx = mx
                 wo = true
               end
@@ -800,6 +806,43 @@ function OVR()
       spr(sp,mxc*6,my*8,0) -- cursor
     end
   end
+
+  if globalstate == "levelstart" or globalstate == "levelend" then
+    paintframe(3,2,24,13,777)
+
+    color = 12
+    if x >= 8*4 and x <= 8*26 and y >= 100 and y <= 110 then
+      color = 5
+    end
+
+    if globalstate == "levelstart" then
+      printc(levels[levelindex].name, 120,29, 15)
+      textrect(levels[levelindex].introtext, 42, 55, 200 - 42)
+      printc("Click here to start the game", 120,100, color)
+      if color == 5 and l then
+        globalstate = "play"
+        clicklock = true
+      end
+    end
+
+    if globalstate == "levelend" then
+      printc("You won the level!", 120,29, 15)
+      textrect(levels[levelindex].outtrotext, 42, 55, 200 - 42)
+      printc("Click here for the next level", 120,100, color)
+      if color == 5 and l then
+        clicklock = true
+        levelindex = levelindex + 1
+        if #levels < levelindex then
+          globalstate = "gamewon"
+        else
+          levelindex = levelindex + 1
+          loadlevel(levelindex)
+          globalstate = "levelstart"
+        end
+      end
+    end
+  end
+
   printc(ct, 120, 0, 12)
 end
 
@@ -853,13 +896,7 @@ function earn(gain)
 
   if re[3] > tm then
     trace("Level won")
-    levelindex = levelindex + 1
-    if #levels < levelindex then
-      trace("Game won")
-      -- TODO
-    else
-      loadlevel(levelindex)
-    end
+    globalstate = "levelend"
   end
 end
 
