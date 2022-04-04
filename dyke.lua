@@ -17,15 +17,16 @@ tl = 0
 pf=0 -- player flip (walking direction)
 sx=0 -- scroll x in pixel
 sb = 30 -- scroll sensitive border
-re = {5, 0, 0} -- ressources (stone, wood, score)
+re = {0, 0, 0} -- ressources (stone, wood, score)
 wt = 100 -- water tics
 pt = 10 -- player tics
 tm = 100 -- target money = win condition
 
-levelwidth = 30
-levelheight = 17
-levelx = 30
-levely = 34
+levelindex = 1
+
+function start() 
+  loadlevel(1)
+end
 
 function lmget(x,y)
   return mget(x+levelx, y+levely)
@@ -38,6 +39,25 @@ end
 re_names={"stone", "wood", "coins", "time"}
 re_symbols={"#", "/", "$", "*"}
 to_names={"walk", "build dyke", "collect", "cut", "play card", "wait"}
+
+levels = {
+  {
+    name = "Introduction",
+    x = 30,
+    y = 34,
+    w = 30,
+    m = 70,
+    re = {5, 0, 0}
+  },
+  {
+    name = "Level two",
+    x = 0,
+    y = 0,
+    w = 60,
+    m = 100,
+    re = {5, 0, 0}
+  },
+}
 
 objecttypes = {
   {
@@ -234,18 +254,42 @@ function dump(o)
   end
 end
 
+function loadlevel(i)
+  levelwidth = levels[i].w
+  levelheight = 17
+  levelx = levels[i].x
+  levely = levels[i].y
+  tm = levels[i].m
+  re = levels[i].re -- TODO deepcopy?
 
-for x=0,levelwidth do
-  for y=0,levelheight do
-    type = nil
-    if lmget(x,y) == 224 then
-      type = objecttypes[2]
-    end
-    if lmget(x,y) == 75 then
-      type = objecttypes[3]
-    end
-    if type then
-      o = createobject(type,x,y)
+  t=0 --global time
+  px=12 -- player x (y is not saved, but computed)
+  tx=12 -- target x (to walk to)
+
+  bx=0 -- build target x
+  by=0 -- build target y
+  tb=nil -- to build (nil or object)
+  to=1 -- tool (1=walk, 2=build, 3=collect, 4=cut, 5=card)
+  wo = false -- working, time passing, accept no input during this
+  tl = 0
+
+  pf=0 -- player flip (walking direction)
+  sx=0 
+
+  objects = {}
+
+  for x=0,levelwidth do
+    for y=0,levelheight do
+      type = nil
+      if lmget(x,y) == 224 then
+        type = objecttypes[2]
+      end
+      if lmget(x,y) == 75 then
+        type = objecttypes[3]
+      end
+      if type then
+        o = createobject(type,x,y)
+      end
     end
   end
 end
@@ -452,6 +496,17 @@ end
 function earn(gain)
   for i = 1,3 do
     re[i] = re[i] + gain[i]
+  end
+
+  if re[3] > tm then
+    trace("Level won")
+    levelindex = levelindex + 1
+    if #levels < levelindex then
+      trace("Game won")
+      -- TODO
+    else
+      loadlevel(levelindex)
+    end
   end
 end
 
@@ -762,6 +817,8 @@ function prints(s,x,y,c)
   end
 end
 
+start()
+
 
 -- <TILES>
 -- 001:3333333434333333333433333333333333333343334333333333433343333333
@@ -795,6 +852,8 @@ end
 -- 038:00000000000000000000000000dddddd00deeeee00deeeee00deeeee00dddddd
 -- 043:0000005500005566000556660056666500662256055622560666766606676776
 -- 044:5650000062260000622760005666670067666600667667707766767066666700
+-- 045:0000000000000000000000330003000000030000000030000003430000300330
+-- 046:0000000000330000034000003400000003000300003340000040300003000300
 -- 048:00000000000000000000000000000000000d000000ddd00d00ddee0d0ddeeedd
 -- 049:000000000dd00000dddd0000ddeef000deeeff00deeeef00eefeef00effeede0
 -- 050:0000000000000000000000000000000000000000000000000000000600000060
@@ -808,6 +867,8 @@ end
 -- 058:0000000000000000000000003300000044000000440000004340000034440000
 -- 059:0062273400722003000000030000000300000003000000330000033400003444
 -- 060:6622700046220000407000004470000044000000440000004340000034440000
+-- 061:0000003400000003000000030000000300000003000000330000033400003444
+-- 062:3400000044000000400000004400000044000000440000004340000034440000
 -- 064:0ddeeedd0deeeede0deedede0dedfede0edefede0defeededdfeeeeedffeeeef
 -- 065:efeedee0efeddef0efddeef0fedeeff0fedeeff0feedeff0feeeeeffeeeeefff
 -- 067:006666060099990000999900009009000090090000900900009009000ff0ff00
@@ -919,7 +980,7 @@ end
 -- </SFX>
 
 -- <FLAGS>
--- 000:00601060406000006040004040000000601010000060600040400040400000000000606060002040400000404000000040400000000060404000004040000000404000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 000:00601060406000006040004040000000601010000060600040400040400000000000606060002040400000404040400040400000000060404000004040404000404000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 -- </FLAGS>
 
 -- <PALETTE>
