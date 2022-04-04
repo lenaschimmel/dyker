@@ -115,7 +115,7 @@ objecttypes = {
     cut = {
       verb = "cut",
       re = 0,
-      gain = {0,10,0,0},
+      gain = {0,5,0,0},
       time = 250
     },
     collect = {
@@ -126,7 +126,7 @@ objecttypes = {
     },
     create = function(o)
       o.ttg = 300
-      o.tta = 200
+      o.tta = 200 * appletimemulti
       o.state = 2
     end,
 
@@ -144,7 +144,7 @@ objecttypes = {
           o.tta = o.tta - 1
         end
         if o.tta == 0 then
-          o.tta = 200
+          o.tta = 200 * appletimemulti
           if o.collect.re < 4 then
             stopwait()
           end
@@ -206,6 +206,9 @@ objecttypes = {
     isblock=false,
     spoutline=151,
     spoutlinered=152,
+    create = function(o)
+      appletimemulti = appletimemulti * 0.7
+    end,
   }
   
 }
@@ -311,6 +314,10 @@ function loadlevel(i)
   pf=0 -- player flip (walking direction)
   sx=0 
 
+  cuttimemulti = 1
+  walktimemulti = 1
+  appletimemulti = 1
+
   objects = {}
   permanents = {}
 
@@ -378,10 +385,11 @@ function OVR()
           selectedcard = 0
           trace("Remove card " .. ci)
           table.remove(handcards, ci)
+          card.y = 14
           if card.effect then
             card.effect()
           elseif card.gain then
-            gain(card.gain)
+            earn(card.gain)
           end
 
           if card.ispermanent then
@@ -526,7 +534,11 @@ function OVR()
               if releft > 0 then
                 if isreachable(ptx, my) then
                   sp = sp - 16 -- enable
-                  ct = action.verb .. " " .. ty.name .. " to get " .. coststring(action.gain) .. ": " .. timestring(walktimetox(ptx) + action.time) .. " ("..releft.."x left)"
+                  actiontime = action.time
+                  if action.verb == "cut" then
+                    actiontime = actiontime * cuttimemulti
+                  end
+                  ct = action.verb .. " " .. ty.name .. " to get " .. coststring(action.gain) .. ": " .. timestring(walktimetox(ptx) + actiontime) .. " ("..releft.."x left)"
                   if l then
                     tb = o
                     wo = true
@@ -621,7 +633,7 @@ function workpoint(left, right)
 end
 
 function walktimetox(x)
-  return  math.abs(px - x) * pt
+  return  math.abs(px - x) * pt * walktimemulti
 end
 
 function canpay(cost)
@@ -731,7 +743,7 @@ function TIC()
     if px ~= tx then -- still walking
       ttw = ttw - 1
       if ttw <= 0 then
-        ttw = pt
+        ttw = pt * walktimemulti
         if px < tx then
           px = px + 1
             pf = 1
@@ -776,6 +788,9 @@ function TIC()
         if action then -- collect or cut 
           if tl == 0 then -- start doing it
             tl = action.time
+            if to == 4 then
+              tl = tl * cuttimemulti
+            end
           end
           
           tl = tl - 1
@@ -1113,16 +1128,26 @@ function definecards()
     {
       title="Boots",
       text="With these boots, you can walk 20% faster.",
-      cost = {0,1,0,0},
+      cost = {0,3,3,0},
       ispermanent = true,
       effect = function()
-        pt = pt * 0.8
+        walktimemulti = walktimemulti * 0.8
+      end,
+      r=235,
+    },
+    {
+      title="Axe",
+      text="With this improved axe, you can cut treed and rocks 20% faster.",
+      cost = {1,3,5,0},
+      ispermanent = true,
+      effect = function()
+        cuttimemulti = cuttimemulti * 0.8
       end,
       r=235,
     },
     {
       title="Well",
-      text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
+      text="The well allows you to water your plants, so their fruit will only take 70% of the time to grow.",
       r=236,
       buildingtype=objecttypes["well"]
     },
@@ -1131,6 +1156,20 @@ function definecards()
       text="You may plant an apple tree.",
       r=237,
       buildingtype=objecttypes["tree"]
+    },
+    {
+      title="Woodsale",
+      text="Someone pays you enormous 35$ if you sell them 20/.",
+      r=239,
+      cost={0,10,0,0},
+      gain={0,0,30,0}
+    },
+    {
+      title="Quickstones",
+      text="If you need stones quickly, get 5# for 20$.",
+      r=240,
+      cost={0,0,20,0},
+      gain={5,0,0,0}
     }
   }
   for i, card in pairs(cards) do
@@ -1149,6 +1188,7 @@ function drawrandomcard()
   ind = math.random(1, #cards)
   trace("Add card " .. ind .. " to hand")
   table.insert(handcards, table.shallow_copy(cards[ind]))
+  cards[ind].y = 14
 end
 
 function movecards()
