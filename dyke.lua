@@ -24,6 +24,7 @@ tm = 100 -- target money = win condition
 
 levelindex = 1
 selectedcard = 0
+buildingcard = nil
 
 function start() 
   loadlevel(1)
@@ -327,7 +328,7 @@ function OVR()
       spr(104, 132 + 12*i, 8, 0)
     end
   end
-  prints(""..#cards, 212, 8, 14)
+  prints(""..#handcards, 212, 8, 14)
 
   ct = "" --center text
   -- draw cursor, handle potential actions
@@ -335,23 +336,41 @@ function OVR()
 
   if to==6 then
     sp = 119
-    ci, bu = drawcards(x/8, y/8)
+    local ci, bu = paintcards(x/8, y/8)
     if bu then
-      mis = canpay(cards[ci].cost)
+      card = handcards[ci]
+      mis = canpay(card.cost)
       if mis > 0 then
         sp = 164
-        ct = "Not enough " .. re_symbols[mis] .. " to play '" .. cards[ci].title .. "'"
-        drawcardonlybutton(ci, 2)
+        ct = "Not enough " .. re_symbols[mis] .. " to play '" .. card.title .. "'"
+        paintcardonlybutton(ci, 2)
       else
         sp = 148
-        ct = "Play the card '" .. cards[ci].title .. "'"
-        drawcardonlybutton(ci, 5)
+        ct = "Play the card '" .. card.title .. "'"
+        paintcardonlybutton(ci, 5)
         if l then
-          -- TODO actually play it
+          pay(card.cost)
+          selectedcard = 0
+          trace("Remove card " .. ci)
+          table.remove(handcards, ci)
+          if card.action then
+            card.action()
+          elseif card.gain then
+            gain(card.gain)
+          end
+
+          if card.ispermanent then
+            table.insert(permanteds, card)
+          end
+
+          if card.buildingtype then
+            buildingcard = card
+
+          end
         end
       end
     elseif ci > 0 and selectedcard ~= ci then
-      ct = "Look at card '" .. cards[ci].title .. "'"
+      ct = "Look at card '" .. handcards[ci].title .. "'"
     elseif ci == 0 and selectedcard > 0 then
       ct = "Move card out of the way"
     end
@@ -492,14 +511,14 @@ function OVR()
             end
 
             if i == 6 then -- card
-              if #cards == 0 then
+              if #handcards == 0 then
                 ct = "No cards"
                 sp = 136
               end
             end
             
             if l then
-              if (i ~= 5 or canwait()) and (i ~= 6 or #cards > 0) then
+              if (i ~= 5 or canwait()) and (i ~= 6 or #handcards > 0) then
                 to = i
               end
               if to == 5 and canwait() then
@@ -936,18 +955,18 @@ function mysplit (inputstr, sep)
   return t
 end
 
-function drawcardonlybutton(i, c)
+function paintcardonlybutton(i, c)
   ci, button = 0, false
   -- effective width: 30 - 9 - 2 = 19
-  wpc = 19 // (#cards - 1)
-  card = cards[i]
+  wpc = 19 // (#handcards - 1)
+  card = handcards[i]
 
   cx = 1 + (i-1) * wpc
   
-  drawcardbutton(cx*8+9*4, (card.y+13-1)*8 - 6,c)
+  paintcardbutton(cx*8+9*4, (card.y+13-1)*8 - 6,c)
 end
 
-function drawcard(x,y,w,h,title,text,cost,r)
+function paintcard(x,y,w,h,title,text,cost,r)
   myspr(204, x,y)
   myspr(207, x+w-1,y)
   myspr(252, x,y+h-1)
@@ -972,7 +991,7 @@ function drawcard(x,y,w,h,title,text,cost,r)
   myspr(218, x+w-2,y+3)
   print(title, x*8+6, y*8 + 6, 15)
   prints(coststring(cost, 0, true), x*8, (y+2)*8)
-  drawcardbutton(x*8+w*4, (y+h-1)*8 - 6, 9)
+  paintcardbutton(x*8+w*4, (y+h-1)*8 - 6, 9)
 
   if y > 13 then
     return
@@ -992,8 +1011,16 @@ function drawcard(x,y,w,h,title,text,cost,r)
   end
 end
 
-function drawcardbutton(x,y,c)
+function paintcardbutton(x,y,c)
   printc("PLAY CARD", x, y, c)
+end
+
+function table.shallow_copy(t)
+  local t2 = {}
+  for k,v in pairs(t) do
+    t2[k] = v
+  end
+  return t2
 end
 
 function definecards()
@@ -1016,22 +1043,21 @@ function definecards()
       text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
       cost = {5,0,0,300},
       r=236,
-    },    
-    {
-      title="Well",
-      text="The well allows you to water your plants, so their fruit will only take 60% of the time to grow.",
-      cost = {5,0,0,300},
-      r=236,
-    },
+    }
   }
   for i, card in pairs(cards) do
     card.y = 14
   end
-  cards = {}
+  handcards = {}
+  for i = 1,5 do
+    ind = math.random(1, #cards)
+    trace("Add card " .. ind .. " to hand")
+    table.insert(handcards, table.shallow_copy(cards[ind]))
+  end
 end
 
 function movecards()
-  for i, card in pairs(cards) do
+  for i, card in pairs(handcards) do
     if i == selectedcard then
       if card.y > 2 then
         card.y = card.y - 1
@@ -1044,13 +1070,13 @@ function movecards()
   end
 end
 
-function drawcards(mx,my) 
+function paintcards(mx,my) 
   ci, button = 0, false
   -- effective width: 30 - 9 - 2 = 19
-  wpc = 19 // (#cards - 1)
-  for i, card in pairs(cards) do
+  wpc = 19 // (#handcards - 1)
+  for i, card in pairs(handcards) do
     cx = 1 + (i-1) * wpc
-    drawcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
+    paintcard(cx,card.y,9,13,card.title, card.text, card.cost, card.r)
     if mx >= cx and mx <= cx + 9 and my >= card.y and my <= card.y + 13 then
       ci = i
       if mx >= cx + 1 and mx < cx + 9 - 1 and my >= card.y + 13 - 2 and my < card.y + 13 - 1 then
