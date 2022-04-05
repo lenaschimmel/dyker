@@ -1155,7 +1155,11 @@ function TIC()
   if wo and to > 1 and to < 5 then
     dx = px - 1 + 2 * pf
     spr(50,dx*8-sx,(py-1)*8,0, 1, pf) -- arm
-    spr(to+79,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
+    if (to == 2 or to == 4) and t % 30 < 15 and px == tx then
+      spr(to+79,dx*8-sx,(py-1)*8,0, 1, pf, 1) -- tool
+    else
+      spr(to+79,dx*8-sx,(py-0)*8,0, 1, pf) -- tool
+    end
     body = 51 -- no double arm
     legs = 67
   end
