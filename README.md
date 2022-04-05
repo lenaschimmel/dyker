@@ -10,7 +10,9 @@ A mouse-controlled, small but somewhat complex game of dyke building and economy
 __to be added later__
 
 ## Instructions
-Download the matching game for your platform. A web version will be uploaded soon. This game was created using [TIC-80](http://tic80.com/), and if you have any trouble running it, general TIC-80 advice applies. This game intentionally has no sound (well, actually I ran out of time to compose music and synth sounds).
+[Play the game online in your Browser](http://tic80.com/play?cart=2734).
+
+Or download the matching game for your platform from [the Ludum Dare page](https://ldjam.com/events/ludum-dare/50/dyker) or from [Github](https://github.com/lenaschimmel/dyker/tree/main/release). This game was created using [TIC-80](http://tic80.com/), and if you have any trouble running it, general TIC-80 advice applies. This game intentionally has no sound (well, actually I ran out of time to compose music and synth sounds).
 
 The game is entirely controlled with the mouse pointer, using only the primary mouse key. You might need the ESC key to quit the game.
 
