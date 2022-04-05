@@ -46,7 +46,7 @@ function lmset(x,y,t)
   mset(x+levelx, y+levely, t)
 end
 
-globalstate = "title" -- title, levelstart, play, levelend, gamewon
+globalstate = "title" -- title, levelstart, play, levelend, gamewon, restart
 
 re_names={"stone", "wood", "coins", "time", "cards"}
 re_symbols={"#", "/", "$", "*", "@"}
@@ -65,7 +65,7 @@ levels = {
   },
   {
     name = "Level two",
-    introtext = "Look, there's a lot more space here. Space to plant trees or even heard some sheep. And more space for the flood wave, of course. This time, you need 100$  to get away from here.",
+    introtext = "Look, there's a lot more space here. Space to plant trees or even herd some sheep. And more space for the flood wave, of course. This time, you need 100$  to get away from here.",
     outrotext = "Time for a new challenge, right?",
     x = 0,
     y = 0,
@@ -556,9 +556,8 @@ function OVR()
     return
   end
 
-  if globalstate == "levelstart" or globalstate == "play" or globalstate == "levelend" then
+  if globalstate == "levelstart" or globalstate == "play" or globalstate == "levelend" or globalstate == "restart" then
     map(levelx,levely,levelwidth,levelheight,-sx,0,0)
-
     
     if not l then
       clicklock = false
@@ -584,6 +583,16 @@ function OVR()
       end
     end
     prints(""..#handcards, 212, 8, 14)
+
+    if x >= 228 and y < 8 then
+      myspr(228, 29, 0)
+      ct = "Restart level"
+      if l then
+        globalstate = "restart"
+      end
+    else
+      myspr(227, 29, 0)
+    end
 
     if to==6 then
       sp = 119
@@ -834,7 +843,7 @@ function OVR()
     end
   end
 
-  if globalstate == "levelstart" or globalstate == "levelend" then
+  if globalstate == "levelstart" or globalstate == "levelend" or globalstate == "restart" then
     paintframe(3,2,24,13,777)
 
     color = 12
@@ -845,8 +854,8 @@ function OVR()
     if globalstate == "levelstart" then
       printc(levels[levelindex].name, 120,29, 15)
       textrect(levels[levelindex].introtext, 42, 55, 200 - 42)
-      printc("Click here to start the game", 120,100, color)
-      if color == 5 and l then
+      printc("Click here to start the level", 120,100, color)
+      if color == 5 and l and clicklock == false then
         globalstate = "play"
         clicklock = true
       end
@@ -856,13 +865,37 @@ function OVR()
       printc("You won the level!", 120,29, 15)
       textrect(levels[levelindex].outrotext, 42, 55, 200 - 42)
       printc("Click here for the next level", 120,100, color)
-      if color == 5 and l then
+      if color == 5 and l and clicklock == false then
         clicklock = true
         levelindex = levelindex + 1
         if #levels < levelindex then
           globalstate = "gamewon"
         else
-          levelindex = levelindex + 1
+          loadlevel(levelindex)
+          globalstate = "levelstart"
+        end
+      end
+    end
+
+    if globalstate == "restart" then
+      printc("Restart this level?", 120,29, 15)
+      textrect("If you think you can't win anymore - or it would be really tedious to win after you had a bad start - you may restart this level.", 42, 55, 200 - 42)
+      
+      
+      color2 = 12
+      if x >= 8*4 and x <= 8*26 and y >= 88 and y <= 98 then
+        color2 = 5
+      end
+
+      printc("Click here to restart", 120,88, color2)
+      printc("Click here to contiune playing", 120,100, color)
+      if l and clicklock == false then
+        clicklock = true
+        if color == 5 then -- continue
+          globalstate = "play"
+        end
+        if color2 == 5 then -- restart
+          sync(4)
           loadlevel(levelindex)
           globalstate = "levelstart"
         end
@@ -1721,6 +1754,8 @@ start()
 -- 223:dddddde0dddddde0dddddde0ddddde00ddddde00dddddee0dddddd00dddddde0
 -- 224:00000000000000000000000000000000000c000000c0c00c00c00c0c0c0000c0
 -- 225:000000000cc00000c00c0000c000c000c0000c0000000c0000000c00000000c0
+-- 227:0000000002000200020022000202220002222200020222000200220002000200
+-- 228:000000000c000c000c00cc000c0ccc000ccccc000c0ccc000c00cc000c000c00
 -- 236:0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd0cdddddd
 -- 237:dddddddddddddddddddddddddddddddddddeddddddddcddddddddddddddddddd
 -- 238:dddddddddddddddddcdddddddddddddddddddddddddddddddddddddddddddddd
