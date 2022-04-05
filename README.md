@@ -6,9 +6,6 @@
 
 A mouse-controlled, small but somewhat complex game of dyke building and economy, with some card game mechanics sprinkled on top. The approaching flood wave might frighten you, but you may keep your calm, because time only passes while you are moving or working.
 
-## Screenshots
-__to be added later__
-
 ## Instructions
 [Play the game online in your Browser](http://tic80.com/play?cart=2734).
 
@@ -19,6 +16,11 @@ The game is entirely controlled with the mouse pointer, using only the primary m
 Take your time to explore the UI. Many elements show a description at the top of the screen.
 
 In each level, you need to earn a specific amount of money before the flood crushes your insland, your economy or even you. If you feel hopeless, you may restart the level with the icon at the top right.
+
+## TIC-80 Cartridge
+![TIC-80 Game Cartridge - this image contains the actual game](https://github.com/lenaschimmel/dyker/raw/main/release/dyker.png)
+
+_The above image contains the actual Game - you can open the Cartidge with TIC-80._
 
 ## Game elements
  * **you** - you can't cross the water or climb/jump steps bigger than one block
