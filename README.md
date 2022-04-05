@@ -31,7 +31,7 @@ In each level, you need to earn a specific amount of money before the flood crus
  * **objects** - some objects are already there at the beginning of a level, while others can be built into the landscape by you, mostly by playing cards
     * **dyke** - primarily built to keep the flood out, you can also use dykes as steps to reach higher ground. Dykes must be build like pyramids, you can't build upright walls
     * **rocks** - cut rocks to gain stone resources
-    * **trees** - pick apples to gain coins, or cut the tree for food
+    * **trees** - pick apples to gain coins, or cut the tree for wood
     * **sheep** - get a bit of money for its wool, or more money for its meat
     * **mine** - a nearly-endless source of stones, but slower to collect than rocks
     * **well** - build this to speed up the growth of all your trees
@@ -42,4 +42,4 @@ In each level, you need to earn a specific amount of money before the flood crus
     * **boots** - walk faster
 
 ## Sister game
-This game was created under the roof of Pistacchio Studios, based on the same idea as its sister game [Shepherd's Island](https://ldjam.com/events/ludum-dare/50/shepherds-island) by @flauschzelle and @blinry. We decided that we wanted to explore different executions of that idea and wrote to games which share nothing but the same basic concept and the programming language (lua).
+This game was created under the roof of Pistacchio Studios, based on the same idea as its sister game [Shepherd's Island](https://ldjam.com/events/ludum-dare/50/shepherds-island) by @flauschzelle and @blinry. We decided that we wanted to explore different executions of that idea and wrote two games which share nothing but the same basic concept and the programming language (lua).
