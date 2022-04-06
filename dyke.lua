@@ -61,6 +61,7 @@ levels = {
     y = 34,
     w = 30,
     m = 70,
+    -- stone, wood, coins, should be cards (not working)
     re = {15, 30, 30, 0}
   },
   {
@@ -76,7 +77,7 @@ levels = {
   {
     name = "Level three",
     introtext = "You made it! Your own little house, on a beautiful island, packed with books. If you aint got nothing else to do, you can study them to find more cards @ ! Let's hope those books don't get wet...",
-    outrotext = "Didn't have much look with those books, right? But don't be disgruntled - you survided, and so has the knowlege inside your head!",
+    outrotext = "Didn't have much luck with those books, right? Or time to read them? But don't be disgruntled - you survided, and so has the knowlege inside your head!",
     x = 87,
     y = 0,
     w = 53,
@@ -476,7 +477,7 @@ function loadlevel(i)
   levelx = levels[i].x
   levely = levels[i].y
   tm = levels[i].m
-  re = levels[i].re -- TODO deepcopy?
+  re = table.shallow_copy(levels[i].re)
 
   t=0 --global time
   px=12 -- player x (y is not saved, but computed)
@@ -548,10 +549,6 @@ function OVR()
     prints("Thank you for playing!", 12*8, 8*8, 12)
     print("You won all levels of Dyker", 2*8, 14*8, 12, false, 1, false)
     print("Come back later to see if there is a post-jam version.", 2*8, 15*8, 12, false, 1, true)
-    
-    if l then
-      globalstate = "levelstart"
-    end
     
     return
   end
