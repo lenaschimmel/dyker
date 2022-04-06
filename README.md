@@ -11,7 +11,7 @@ A mouse-controlled, small but somewhat complex game of dyke building and economy
 
 Or download the matching game for your platform from [the Ludum Dare page](https://ldjam.com/events/ludum-dare/50/dyker) or from [Github](https://github.com/lenaschimmel/dyker/tree/main/release). This game was created using [TIC-80](http://tic80.com/), and if you have any trouble running it, general TIC-80 advice applies. This game intentionally has no sound (well, actually I ran out of time to compose music and synth sounds).
 
-The game is entirely controlled with the mouse pointer, using only the primary mouse key. You might need the ESC key to quit the game.
+The game is entirely controlled with the mouse pointer, using only the primary mouse key. You might need the ESC key to quit the game, and you can use scroll gestures starting in level 2 (level 1 fits on the screen). You _can_ play it on a mobile device with touch control, but I do not recommend it, because you can't hover over buttons.
 
 Take your time to explore the UI. Many elements show a description at the top of the screen.
 
@@ -25,7 +25,7 @@ _The above image contains the actual Game - you can open the Cartidge with TIC-8
 ## Game elements
  * **you** - you can't cross the water or climb/jump steps bigger than one block
  * **water** - the flood comes in from the left, and advances exactly one tile per time unit
- * **time** - time stands still while you think and explore the UI - it only passes when you walk or work
+ * **time** - time stands still while you think and explore the UI - it only passes when you walk, work or use the "wait" action (time passes until a tree or sheep grows apple or wool)
  * **resources**
     * **stone** - needed to build dykes and buying some other objects
     * **wood** - you can buy objects or trade it in for coins using cards
@@ -47,3 +47,9 @@ _The above image contains the actual Game - you can open the Cartidge with TIC-8
 
 ## Sister game
 This game was created under the roof of Pistacchio Studios, based on the same idea as its sister game [Shepherd's Island](https://ldjam.com/events/ludum-dare/50/shepherds-island) by @flauschzelle and @blinry. We decided that we wanted to explore different executions of that idea and wrote two games which share nothing but the same basic concept and the programming language (lua).
+
+## Update history
+ * April 6, 18:50 CET - three small fixes
+   * fixed text typo
+   * fixed crash when you win the game
+   * fixed level restart - initial resources now also reset to the original amount
