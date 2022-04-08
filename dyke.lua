@@ -192,7 +192,7 @@ objecttypes = {
         if o.tta > 0 then
           o.tta = o.tta - 1
         end
-        if o.tta == 0 then
+        if o.tta <= 0 then
           o.tta = 200 * appletimemulti
           if o.collect.re < 4 then
             stopwait()
@@ -308,7 +308,7 @@ objecttypes = {
         if o.tta > 0 then
           o.tta = o.tta - 1
         end
-        if o.tta == 0 then
+        if o.tta <= 0 then
           o.tta = 600 * wooltimemulti
           if o.collect.re < 2 then
             stopwait()
@@ -1081,7 +1081,7 @@ function TIC()
           action = ty.cut
         end
         if action then -- collect or cut 
-          if tl == 0 then -- start doing it
+          if tl <= 0 then -- start doing it
             tl = action.time
             if to == 4 then
               tl = tl * cuttimemulti
