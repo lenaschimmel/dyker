@@ -1462,7 +1462,7 @@ function definecards()
     },
     {
       title="Axe",
-      text="With this improved axe, you can cut treed and rocks 20% faster.",
+      text="With this improved axe, you can cut trees and rocks 20% faster.",
       cost = {1,3,5,0},
       ispermanent = true,
       effect = function()
