@@ -731,11 +731,11 @@ function OVR()
                 elseif right < px then -- must reach to the left
                   pf = 0
                 end
+              end
               else
                 ct = "Can't reach this place."
               end
             end
-          end
           spr(sp,mx*8-sx,my*8,0,1,0,0,ty.sx, ty.sy)
         end
 
