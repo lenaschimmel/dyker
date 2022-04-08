@@ -55,7 +55,7 @@ In compliance with the _Additional Notes for both the Jam and Compo_ from the [r
    * fixed text typo
    * fixed crash when you win the game
    * fixed level restart - initial resources now also reset to the original amount
- * April 8, 12:35 CET - three more fixes
+ * April 8, 12:45 CET - three more fixes
    * fixed wells: building more than one well does no longer stop all apples from growing completely, instead they grow even faster now
    * fixed very glitchy end game screen
    * fixed text typo
