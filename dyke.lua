@@ -732,10 +732,10 @@ function OVR()
                   pf = 0
                 end
               end
-              else
-                ct = "Can't reach this place."
-              end
+            else
+              ct = "Can't reach this place."
             end
+          end
           spr(sp,mx*8-sx,my*8,0,1,0,0,ty.sx, ty.sy)
         end
 
