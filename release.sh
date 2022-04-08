@@ -6,4 +6,5 @@ export win release/dyker_win & \
 export linux release/dyker_linux & \
 export mac release/dyker_mac & \
 save release/dyker.png & \
+save release/dyker.tic & \
 exit"
