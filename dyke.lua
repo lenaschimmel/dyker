@@ -996,7 +996,7 @@ function coststring(cost, extratime, compact)
 end
 
 function TIC()
-  if globalstate == "title" then
+  if globalstate == "title" or globalstate == "gamewon" then
     cls(10)
   else
     cls(11)
@@ -1120,6 +1120,10 @@ function TIC()
 
   if globalstate ~= "title" then
     map(levelx,levely+17,levelwidth,levelheight,-sx,0,0)
+  end
+
+  if globalstate == "gamewon" then
+    return
   end
 
   -- draw objects
