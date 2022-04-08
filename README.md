@@ -49,7 +49,13 @@ _The above image contains the actual Game - you can open the Cartidge with TIC-8
 This game was created under the roof of Pistacchio Studios, based on the same idea as its sister game [Shepherd's Island](https://ldjam.com/events/ludum-dare/50/shepherds-island) by @flauschzelle and @blinry. We decided that we wanted to explore different executions of that idea and wrote two games which share nothing but the same basic concept and the programming language (lua).
 
 ## Update history
+In compliance with the _Additional Notes for both the Jam and Compo_ from the [rules](https://ldjam.com/events/ludum-dare/rules) I published some bug fixes after the deadline and outline them below:
+
  * April 6, 18:50 CET - three small fixes
    * fixed text typo
    * fixed crash when you win the game
    * fixed level restart - initial resources now also reset to the original amount
+ * April 8, 12:35 CET - three more fixes
+   * fixed wells: building more than one well does no longer stop all apples from growing completely, instead they grow even faster now
+   * fixed very glitchy end game screen
+   * fixed text typo
