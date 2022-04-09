@@ -1,0 +1,28 @@
+{
+    "root": "src",
+    "wait": 200,
+    "metadata": {
+      "title": null,
+      "author": null,
+      "desc": null,
+      "script": "lua",
+      "input": null,
+      "saveid": null
+    },
+    "output": {
+      "path": "./",
+      "extension": "lua",
+      "name": "dyke"
+    },
+    "files": [
+      "helpers.lua",
+      "levels.lua",
+      "objects.lua",
+      "cards.lua",
+      "drawing.lua",
+      "tic.lua",
+      "ovr.lua",
+      "main.lua"
+    ],
+    "after": null
+  }
